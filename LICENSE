@@ -1,0 +1,49 @@
+ - Crypto - Crypto utility methods for ease of use with AES/ECC/GCM/PPG/ECDSA/SCrypt/BCrypt/X509/OpenSSL-PBE, java 8+
+   [The Apache Software License, Version 2.0]
+   https://git.dorkbox.com/dorkbox/Crypto
+   Copyright 2023
+     Dorkbox LLC
+
+   Extra license information
+     - BCrypt - 
+       [BSD 2-Clause "Simplified" or "FreeBSD" license]
+       https://git.dorkbox.com/dorkbox/Crypto
+       https://www.mindrot.org/projects/jBCrypt
+       Copyright 2006
+         Damien Miller (djm@mindrot.org)
+       GWT modified version
+
+     - SLF4J - Simple facade or abstraction for various logging frameworks
+       [MIT License]
+       https://www.slf4j.org
+       Copyright 2023
+         QOS.ch
+
+     - Kotlin - 
+       [The Apache Software License, Version 2.0]
+       https://github.com/JetBrains/kotlin
+       Copyright 2020
+         JetBrains s.r.o. and Kotlin Programming Language contributors
+       Kotlin Compiler, Test Data+Libraries, and Tools repository contain third-party code, to which different licenses may apply
+       See: https://github.com/JetBrains/kotlin/blob/master/license/README.md
+
+     - Bouncy Castle Crypto - Lightweight cryptography API and JCE Extension
+       [The Apache Software License, Version 2.0]
+       https://www.bouncycastle.org
+       Copyright 2023
+         The Legion of the Bouncy Castle Inc
+
+     - Updates - Software Update Management
+       [The Apache Software License, Version 2.0]
+       https://git.dorkbox.com/dorkbox/Updates
+       Copyright 2021
+         Dorkbox LLC
+
+       Extra license information
+         - Kotlin - 
+           [The Apache Software License, Version 2.0]
+           https://github.com/JetBrains/kotlin
+           Copyright 2020
+             JetBrains s.r.o. and Kotlin Programming Language contributors
+           Kotlin Compiler, Test Data+Libraries, and Tools repository contain third-party code, to which different licenses may apply
+           See: https://github.com/JetBrains/kotlin/blob/master/license/README.md
