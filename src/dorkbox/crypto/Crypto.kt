@@ -220,23 +220,6 @@ object Crypto {
     }
 
     /**
-     * Hash an input stream, based on the specified digest
-     */
-    @Throws(IOException::class)
-    fun hashStream(digest: Digest, inputStream: InputStream): ByteArray {
-        val buffer = ByteArray(2048)
-        var read: Int
-        digest.reset()
-        while (inputStream.read(buffer).also { read = it } > 0) {
-            digest.update(buffer, 0, read)
-        }
-        inputStream.close()
-        val digestBytes = ByteArray(digest.digestSize)
-        digest.doFinal(digestBytes, 0)
-        return digestBytes
-    }
-
-    /**
      * Secure way to generate an AES key based on a password. Will '*' out the passed-in password
      *
      * @param password
