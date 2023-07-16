@@ -36,7 +36,7 @@ object Extras {
     // set for the project
     const val description = "Crypto utility methods for ease of use with AES/ECC/GCM/PPG/ECDSA/SCrypt/BCrypt/X509/OpenSSL-PBE, java 8+"
     const val group = "com.dorkbox"
-    const val version = "1.0"
+    const val version = "1.1"
 
     // set as project.ext
     const val name = "Crypto"

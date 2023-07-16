@@ -63,7 +63,7 @@ object Crypto {
     /**
      * Gets the version number.
      */
-    val version = "1.0"
+    val version = "1.1"
 
     init {
         // Add this project to the updates system, which verifies this class + UUID + version information
