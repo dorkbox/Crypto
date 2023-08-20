@@ -96,7 +96,7 @@ tasks.withType<Test>() {
 dependencies {
     api("com.dorkbox:Updates:1.1")
 
-    api("org.slf4j:slf4j-api:2.0.7")
+    implementation("org.slf4j:slf4j-api:2.0.7")
 
     // testing
     val bcVersion = "1.70"
@@ -109,7 +109,7 @@ dependencies {
     testImplementation("de.javakaffee:kryo-serializers:0.45")
 
 
-    testImplementation("com.dorkbox:ByteUtilities:1.10")
+    testImplementation("com.dorkbox:ByteUtilities:1.14")
     testImplementation("com.dorkbox:Serializers:2.7")
 
     testImplementation("junit:junit:4.13.2")
