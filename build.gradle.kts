@@ -109,7 +109,7 @@ dependencies {
     testImplementation("de.javakaffee:kryo-serializers:0.45")
 
 
-    testImplementation("com.dorkbox:ByteUtilities:1.14")
+    testImplementation("com.dorkbox:ByteUtilities:2.0")
     testImplementation("com.dorkbox:Serializers:2.7")
 
     testImplementation("junit:junit:4.13.2")
