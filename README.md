@@ -15,7 +15,7 @@ Maven Info
     <dependency>
       <groupId>com.dorkbox</groupId>
       <artifactId>Crypto</artifactId>
-      <version>1.1</version>
+      <version>1.2</version>
     </dependency>
 </dependencies>
 ```
@@ -25,7 +25,7 @@ Gradle Info
 ```
 dependencies {
     ...
-    implementation("com.dorkbox:Crypto:1.1")
+    implementation("com.dorkbox:Crypto:1.2")
 }
 ```
 
