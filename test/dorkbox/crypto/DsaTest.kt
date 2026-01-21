@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,136 +13,132 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import static org.junit.Assert.fail;
+import dorkbox.crypto.CryptoDSA.generateKeyPair
+import dorkbox.crypto.CryptoDSA.generateSignature
+import org.bouncycastle.asn1.ASN1Integer
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier
+import org.bouncycastle.asn1.x509.DSAParameter
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+import org.bouncycastle.asn1.x9.X9ObjectIdentifiers
+import org.bouncycastle.crypto.params.DSAPrivateKeyParameters
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters
+import org.bouncycastle.crypto.util.PrivateKeyFactory
+import org.bouncycastle.crypto.util.PublicKeyFactory
+import org.junit.Assert
+import org.junit.Test
+import java.io.IOException
+import java.security.SecureRandom
 
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.Arrays;
-
-import org.bouncycastle.asn1.ASN1Integer;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.asn1.x509.DSAParameter;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.asn1.x9.X9ObjectIdentifiers;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.params.DSAParameters;
-import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-import org.junit.Test;
-
-
-@SuppressWarnings("deprecation")
-public class DsaTest {
-    private static String entropySeed = "asdjhaffasttjjhgpx600gn,-356268909087s0dfgkjh255124515hasdg87";
-
+@Suppress("deprecation")
+class DsaTest {
     // Note: this is here just for keeping track of how this is done. This should NOT be used, and instead ECC crypto used instead.
     @Test
-    public void Dsa() {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+    fun Dsa() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        AsymmetricCipherKeyPair generateKeyPair = CryptoDSA.generateKeyPair(new SecureRandom(entropySeed.getBytes()), 1024);
-        DSAPrivateKeyParameters privateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
-        DSAPublicKeyParameters publicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
+        val generateKeyPair = generateKeyPair(SecureRandom(entropySeed.toByteArray()), 1024)
+        val privateKey = generateKeyPair.private as DSAPrivateKeyParameters
+        val publicKey = generateKeyPair.public as DSAPublicKeyParameters
 
 
-        BigInteger[] signature = CryptoDSA.generateSignature(privateKey, new SecureRandom(entropySeed.getBytes()), bytes);
+        val signature = generateSignature(privateKey, SecureRandom(entropySeed.toByteArray()), bytes)
 
-        boolean verify1 = CryptoDSA.verifySignature(publicKey, bytes, signature);
+        val verify1 = CryptoDSA.verifySignature(publicKey, bytes, signature)
 
         if (!verify1) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
 
 
-        byte[] bytes2 = "hello, my name is inigo montoya FAILED VERSION".getBytes();
+        val bytes2 = "hello, my name is inigo montoya FAILED VERSION".toByteArray()
 
-        if (Arrays.equals(bytes, bytes2)) {
-            fail("failed to create different byte arrays for testing bad messages");
+        if (bytes.contentEquals(bytes2)) {
+            Assert.fail("failed to create different byte arrays for testing bad messages")
         }
 
 
 
-        boolean verify2 = CryptoDSA.verifySignature(publicKey, bytes2, signature);
+        val verify2 = CryptoDSA.verifySignature(publicKey, bytes2, signature)
 
         if (verify2) {
-            fail("failed signature verification with bad message");
+            Assert.fail("failed signature verification with bad message")
         }
     }
 
     @Test
-    public void DsaJceSerializaion() throws IOException {
-
-        AsymmetricCipherKeyPair generateKeyPair = CryptoDSA.generateKeyPair(new SecureRandom(entropySeed.getBytes()), 1024);
-        DSAPrivateKeyParameters privateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
-        DSAPublicKeyParameters publicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
+    @Throws(IOException::class)
+    fun DsaJceSerializaion() {
+        val generateKeyPair = generateKeyPair(SecureRandom(entropySeed.toByteArray()), 1024)
+        val privateKey = generateKeyPair.private as DSAPrivateKeyParameters
+        val publicKey = generateKeyPair.public as DSAPublicKeyParameters
 
 
         // public key as bytes.
-        DSAParameters parameters = publicKey.getParameters();
-        byte[] bs = new SubjectPublicKeyInfo(
-                                 new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                                                         new DSAParameter(parameters.getP(), parameters.getQ(), parameters.getG()).toASN1Primitive()),
-                                 new ASN1Integer(publicKey.getY())).getEncoded();
+        var parameters = publicKey.parameters
+        val bs = SubjectPublicKeyInfo(
+            AlgorithmIdentifier(
+                X9ObjectIdentifiers.id_dsa, DSAParameter(parameters.p, parameters.q, parameters.g).toASN1Primitive()
+            ), ASN1Integer(publicKey.y)
+        ).getEncoded()
 
 
 
-        parameters = privateKey.getParameters();
-        byte[] bs2 = new PrivateKeyInfo(
-                                new AlgorithmIdentifier(X9ObjectIdentifiers.id_dsa,
-                                                        new DSAParameter(parameters.getP(), parameters.getQ(), parameters.getG()).toASN1Primitive()),
-                                new ASN1Integer(privateKey.getX())).getEncoded();
+        parameters = privateKey.parameters
+        val bs2 = PrivateKeyInfo(
+            AlgorithmIdentifier(
+                X9ObjectIdentifiers.id_dsa, DSAParameter(parameters.p, parameters.q, parameters.g).toASN1Primitive()
+            ), ASN1Integer(privateKey.x)
+        ).getEncoded()
 
 
 
-
-
-        DSAPrivateKeyParameters privateKey2 = (DSAPrivateKeyParameters) PrivateKeyFactory.createKey(bs2);
-        DSAPublicKeyParameters publicKey2 = (DSAPublicKeyParameters) PublicKeyFactory.createKey(bs);
+        val privateKey2 = PrivateKeyFactory.createKey(bs2) as DSAPrivateKeyParameters
+        val publicKey2 = PublicKeyFactory.createKey(bs) as DSAPublicKeyParameters
 
 
 
         // test via signing
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
 
-        BigInteger[] signature = CryptoDSA.generateSignature(privateKey, new SecureRandom(entropySeed.getBytes()), bytes);
+        val signature = generateSignature(privateKey, SecureRandom(entropySeed.toByteArray()), bytes)
 
-        boolean verify1 = CryptoDSA.verifySignature(publicKey, bytes, signature);
+        val verify1 = CryptoDSA.verifySignature(publicKey, bytes, signature)
 
         if (!verify1) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
 
 
-        boolean verify2 = CryptoDSA.verifySignature(publicKey2, bytes, signature);
+        val verify2 = CryptoDSA.verifySignature(publicKey2, bytes, signature)
 
         if (!verify2) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
 
 
 
         // now reverse who signs what.
-        BigInteger[] signatureB = CryptoDSA.generateSignature(privateKey2, new SecureRandom(entropySeed.getBytes()), bytes);
+        val signatureB = generateSignature(privateKey2, SecureRandom(entropySeed.toByteArray()), bytes)
 
-        boolean verifyB1 = CryptoDSA.verifySignature(publicKey, bytes, signatureB);
+        val verifyB1 = CryptoDSA.verifySignature(publicKey, bytes, signatureB)
 
         if (!verifyB1) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
 
 
-        boolean verifyB2 = CryptoDSA.verifySignature(publicKey2, bytes, signatureB);
+        val verifyB2 = CryptoDSA.verifySignature(publicKey2, bytes, signatureB)
 
         if (!verifyB2) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
     }
 
+    companion object {
+        private const val entropySeed = "asdjhaffasttjjhgpx600gn,-356268909087s0dfgkjh255124515hasdg87"
+    }
 }

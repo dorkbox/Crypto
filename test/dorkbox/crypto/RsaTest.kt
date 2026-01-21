@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,129 +13,131 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
+
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.Input
+import com.esotericsoftware.kryo.io.Output
+import dorkbox.serializers.bouncycastle.RsaPrivateKeySerializer
+import dorkbox.serializers.bouncycastle.RsaPublicKeySerializer
+import org.bouncycastle.crypto.digests.SHA1Digest
+import org.bouncycastle.crypto.encodings.OAEPEncoding
+import org.bouncycastle.crypto.engines.RSAEngine
+import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
+import org.bouncycastle.crypto.params.RSAKeyGenerationParameters
+import org.bouncycastle.crypto.params.RSAKeyParameters
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
+import org.bouncycastle.crypto.signers.PSSSigner
+import org.junit.Assert
+import org.junit.Test
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.math.BigInteger
+import java.security.SecureRandom
 
 
-import static org.junit.Assert.fail;
+class RsaTest {
+    var logger: Logger? = LoggerFactory.getLogger(this.javaClass)
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.Arrays;
-
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.digests.SHA1Digest;
-import org.bouncycastle.crypto.encodings.OAEPEncoding;
-import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
-import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.bouncycastle.crypto.signers.PSSSigner;
-import org.junit.Test;
-
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
-import dorkbox.serializers.bouncycastle.RsaPrivateKeySerializer;
-import dorkbox.serializers.bouncycastle.RsaPublicKeySerializer;
-
-public class RsaTest {
-    org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
-    private static String entropySeed = "asdjhaffasttjjhgpx600gn,-356268909087s0dfgkjh255124515hasdg87";
-
-    @SuppressWarnings("deprecation")
+    @Suppress("deprecation")
     @Test
-    public void Rsa() {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+    fun Rsa() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        AsymmetricCipherKeyPair key = CryptoRSA.generateKeyPair(new SecureRandom(entropySeed.getBytes()), 1024);
+        val key = CryptoRSA.generateKeyPair(SecureRandom(entropySeed.toByteArray()), 1024)
 
-        RSAKeyParameters public1 = (RSAKeyParameters) key.getPublic();
-        RSAPrivateCrtKeyParameters private1 = (RSAPrivateCrtKeyParameters) key.getPrivate();
+        val public1 = key.public as RSAKeyParameters
+        val private1 = key.private as RSAPrivateCrtKeyParameters
 
 
-        RSAEngine engine = new RSAEngine();
-        SHA1Digest digest = new SHA1Digest();
-        OAEPEncoding rsaEngine = new OAEPEncoding(engine, digest);
+        val engine = RSAEngine()
+        val digest = SHA1Digest()
+        val rsaEngine = OAEPEncoding(engine, digest)
 
         // test encrypt/decrypt
-        byte[] encryptRSA = CryptoRSA.encrypt(rsaEngine, public1, bytes, logger);
-        byte[] decryptRSA = CryptoRSA.decrypt(rsaEngine, private1, encryptRSA, logger);
+        val encryptRSA = CryptoRSA.encrypt(rsaEngine, public1, bytes, logger)
+        val decryptRSA = CryptoRSA.decrypt(rsaEngine, private1, encryptRSA, logger)
 
-        if (Arrays.equals(bytes, encryptRSA)) {
-            fail("bytes should not be equal");
+        if (bytes.contentEquals(encryptRSA)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        if (!Arrays.equals(bytes, decryptRSA)) {
-            fail("bytes not equal");
+        if (!bytes.contentEquals(decryptRSA)) {
+            Assert.fail("bytes not equal")
         }
 
         // test signing/verification
-        PSSSigner signer = new PSSSigner(engine, digest, digest.getDigestSize());
+        val signer = PSSSigner(engine, digest, digest.digestSize)
 
-        byte[] signatureRSA = CryptoRSA.sign(signer, private1, bytes, logger);
-        boolean verify = CryptoRSA.verify(signer, public1, signatureRSA, bytes);
+        val signatureRSA = CryptoRSA.sign(signer, private1, bytes, logger)
+        val verify = CryptoRSA.verify(signer, public1, signatureRSA, bytes)
 
         if (!verify) {
-            fail("failed signature verification");
+            Assert.fail("failed signature verification")
         }
     }
 
 
-    @SuppressWarnings("deprecation")
+    @Suppress("deprecation")
     @Test
-    public void RsaSerialization () throws IOException {
-        RSAKeyPairGenerator keyGen = new RSAKeyPairGenerator();
-        RSAKeyGenerationParameters params = new RSAKeyGenerationParameters(new BigInteger("65537"), // public exponent
-                                                                           new SecureRandom(entropySeed.getBytes()), //pnrg
-                                                                           1024, // key length
-                                                                           8);  //the number of iterations of the Miller-Rabin primality test.
-        keyGen.init(params);
+    @Throws(IOException::class)
+    fun RsaSerialization() {
+        val keyGen = RSAKeyPairGenerator()
+        val params = RSAKeyGenerationParameters(
+            BigInteger("65537"),  // public exponent
+            SecureRandom(entropySeed.toByteArray()),  //pnrg
+            1024,  // key length
+            8
+        ) //the number of iterations of the Miller-Rabin primality test.
+        keyGen.init(params)
 
 
-        AsymmetricCipherKeyPair key = keyGen.generateKeyPair();
+        val key = keyGen.generateKeyPair()
 
-        RSAKeyParameters public1 = (RSAKeyParameters) key.getPublic();
-        RSAPrivateCrtKeyParameters private1 = (RSAPrivateCrtKeyParameters) key.getPrivate();
+        val public1 = key.public as RSAKeyParameters
+        val private1 = key.private as RSAPrivateCrtKeyParameters
 
 
-        Kryo kryo = new Kryo();
-        kryo.register(RSAKeyParameters.class, new RsaPublicKeySerializer());
-        kryo.register(RSAPrivateCrtKeyParameters.class, new RsaPrivateKeySerializer());
+        val kryo = Kryo()
+        kryo.register(RSAKeyParameters::class.java, RsaPublicKeySerializer())
+        kryo.register(RSAPrivateCrtKeyParameters::class.java, RsaPrivateKeySerializer())
 
         // Test output to stream, large buffer.
-        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        Output output = new Output(outStream, 4096);
-        kryo.writeClassAndObject(output, public1);
-        output.flush();
+        var outStream = ByteArrayOutputStream()
+        var output = Output(outStream, 4096)
+        kryo.writeClassAndObject(output, public1)
+        output.flush()
 
         // Test input from stream, large buffer.
-        Input input = new Input(new ByteArrayInputStream(outStream.toByteArray()), 4096);
-        RSAKeyParameters public2 = (RSAKeyParameters) kryo.readClassAndObject(input);
+        var input = Input(ByteArrayInputStream(outStream.toByteArray()), 4096)
+        val public2 = kryo.readClassAndObject(input) as RSAKeyParameters
 
 
         if (!CryptoRSA.compare(public1, public2)) {
-            fail("public keys not equal");
+            Assert.fail("public keys not equal")
         }
 
 
         // Test output to stream, large buffer.
-        outStream = new ByteArrayOutputStream();
-        output = new Output(outStream, 4096);
-        kryo.writeClassAndObject(output, private1);
-        output.flush();
+        outStream = ByteArrayOutputStream()
+        output = Output(outStream, 4096)
+        kryo.writeClassAndObject(output, private1)
+        output.flush()
 
         // Test input from stream, large buffer.
-        input = new Input(new ByteArrayInputStream(outStream.toByteArray()), 4096);
-        RSAPrivateCrtKeyParameters private2 = (RSAPrivateCrtKeyParameters) kryo.readClassAndObject(input);
+        input = Input(ByteArrayInputStream(outStream.toByteArray()), 4096)
+        val private2 = kryo.readClassAndObject(input) as RSAPrivateCrtKeyParameters
 
 
         if (!CryptoRSA.compare(private1, private2)) {
-            fail("private keys not equal");
+            Assert.fail("private keys not equal")
         }
+    }
+
+    companion object {
+        private const val entropySeed = "asdjhaffasttjjhgpx600gn,-356268909087s0dfgkjh255124515hasdg87"
     }
 }

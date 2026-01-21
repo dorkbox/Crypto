@@ -13,331 +13,348 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import static org.junit.Assert.fail;
+import dorkbox.crypto.CryptoAES.decrypt
+import dorkbox.crypto.CryptoAES.decryptStream
+import dorkbox.crypto.CryptoAES.decryptStreamWithIV
+import dorkbox.crypto.CryptoAES.decryptWithIV
+import dorkbox.crypto.CryptoAES.encrypt
+import dorkbox.crypto.CryptoAES.encryptStream
+import dorkbox.crypto.CryptoAES.encryptStreamWithIV
+import dorkbox.crypto.CryptoAES.encryptWithIV
+import org.bouncycastle.crypto.engines.AESEngine
+import org.bouncycastle.crypto.engines.AESFastEngine
+import org.bouncycastle.crypto.modes.CBCBlockCipher
+import org.bouncycastle.crypto.modes.GCMBlockCipher
+import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
+import org.junit.Assert
+import org.junit.Test
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.security.SecureRandom
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.security.SecureRandom;
-import java.util.Arrays;
-
-import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.engines.AESFastEngine;
-import org.bouncycastle.crypto.modes.CBCBlockCipher;
-import org.bouncycastle.crypto.modes.GCMBlockCipher;
-import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
-import org.junit.Test;
-
-public class AesTest {
-
-    org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
-    private static String entropySeed = "asdjhasdkljalksdfhlaks4356268909087s0dfgkjh255124515hasdg87";
+class AesTest {
+    var logger: Logger? = LoggerFactory.getLogger(this.javaClass)
 
     @Test
-    public void AesGcm() throws IOException {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+    @Throws(IOException::class)
+    fun AesGcm() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
+        val aesEngine = GCMBlockCipher(AESEngine())
 
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key (32 bytes)
-        rand.nextBytes(iv); // 128bit block size (16 bytes)
+        rand.nextBytes(key) // 256bit key (32 bytes)
+        rand.nextBytes(iv) // 128bit block size (16 bytes)
 
 
-        byte[] encryptAES = CryptoAES.encrypt(aesEngine, key, iv, bytes, logger);
-        byte[] decryptAES = CryptoAES.decrypt(aesEngine, key, iv, encryptAES, logger);
+        val encryptAES = encrypt(aesEngine, key, iv, bytes, logger)
+        val decryptAES = decrypt(aesEngine, key, iv, encryptAES, logger)
 
-        if (Arrays.equals(bytes, encryptAES)) {
-            fail("bytes should not be equal");
+        if (bytes.contentEquals(encryptAES)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        if (!Arrays.equals(bytes, decryptAES)) {
-            fail("bytes not equal");
+        if (!bytes.contentEquals(decryptAES)) {
+            Assert.fail("bytes not equal")
         }
     }
 
     // Note: this is still tested, but DO NOT USE BLOCK MODE as it does NOT provide authentication. GCM does.
-    @SuppressWarnings("deprecation")
+    @Suppress("deprecation")
     @Test
-    public void AesBlock() throws IOException {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+    @Throws(IOException::class)
+    fun AesBlock() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        PaddedBufferedBlockCipher aesEngine = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+        val aesEngine = PaddedBufferedBlockCipher(CBCBlockCipher(AESFastEngine()))
 
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key
-        rand.nextBytes(iv); // 16bit block size
+        rand.nextBytes(key) // 256bit key
+        rand.nextBytes(iv) // 16bit block size
 
 
-        byte[] encryptAES = CryptoAES.encrypt(aesEngine, key, iv, bytes, logger);
-        byte[] decryptAES = CryptoAES.decrypt(aesEngine, key, iv, encryptAES, logger);
+        val encryptAES = encrypt(aesEngine, key, iv, bytes, logger)
+        val decryptAES = decrypt(aesEngine, key, iv, encryptAES, logger)
 
-        if (Arrays.equals(bytes, encryptAES)) {
-            fail("bytes should not be equal");
+        if (bytes.contentEquals(encryptAES)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        if (!Arrays.equals(bytes, decryptAES)) {
-            fail("bytes not equal");
+        if (!bytes.contentEquals(decryptAES)) {
+            Assert.fail("bytes not equal")
         }
     }
 
     @Test
-    public void AesGcmStream() throws IOException {
-        byte[] originalBytes = "hello, my name is inigo montoya".getBytes();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(originalBytes);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    @Throws(IOException::class)
+    fun AesGcmStream() {
+        val originalBytes = "hello, my name is inigo montoya".toByteArray()
+        var inputStream = ByteArrayInputStream(originalBytes)
+        var outputStream = ByteArrayOutputStream()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
+        val aesEngine = GCMBlockCipher(AESEngine())
 
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
-
-        // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key
-        rand.nextBytes(iv); // 128bit block size
-
-
-        boolean success = CryptoAES.encryptStream(aesEngine, key, iv, inputStream, outputStream, logger);
-
-        if (!success) {
-            fail("crypto was not successful");
-        }
-
-        byte[] encryptBytes = outputStream.toByteArray();
-
-        inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-        outputStream = new ByteArrayOutputStream();
-
-        success = CryptoAES.decryptStream(aesEngine, key, iv, inputStream, outputStream, logger);
-
-        if (!success) {
-            fail("crypto was not successful");
-        }
-
-        byte[] decryptBytes = outputStream.toByteArray();
-
-        if (Arrays.equals(originalBytes, encryptBytes)) {
-            fail("bytes should not be equal");
-        }
-
-        if (!Arrays.equals(originalBytes, decryptBytes)) {
-            fail("bytes not equal");
-        }
-    }
-
-    // Note: this is still tested, but DO NOT USE BLOCK MODE as it does NOT provide authentication. GCM does.
-    @SuppressWarnings("deprecation")
-    @Test
-    public void AesBlockStream() throws IOException {
-        byte[] originalBytes = "hello, my name is inigo montoya".getBytes();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(originalBytes);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
-
-        PaddedBufferedBlockCipher aesEngine = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
-
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key
-        rand.nextBytes(iv); // 128bit block size
+        rand.nextBytes(key) // 256bit key
+        rand.nextBytes(iv) // 128bit block size
 
 
-        boolean success = CryptoAES.encryptStream(aesEngine, key, iv, inputStream, outputStream, logger);
-
-        if (!success) {
-            fail("crypto was not successful");
-        }
-
-        byte[] encryptBytes = outputStream.toByteArray();
-
-        inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-        outputStream = new ByteArrayOutputStream();
-
-        success = CryptoAES.decryptStream(aesEngine, key, iv, inputStream, outputStream, logger);
-
+        var success = encryptStream(aesEngine, key, iv, inputStream, outputStream, logger)
 
         if (!success) {
-            fail("crypto was not successful");
+            Assert.fail("crypto was not successful")
         }
 
-        byte[] decryptBytes = outputStream.toByteArray();
+        val encryptBytes = outputStream.toByteArray()
 
-        if (Arrays.equals(originalBytes, encryptBytes)) {
-            fail("bytes should not be equal");
+        inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        outputStream = ByteArrayOutputStream()
+
+        success = decryptStream(aesEngine, key, iv, inputStream, outputStream, logger)
+
+        if (!success) {
+            Assert.fail("crypto was not successful")
         }
 
-        if (!Arrays.equals(originalBytes, decryptBytes)) {
-            fail("bytes not equal");
-        }
-    }
+        val decryptBytes = outputStream.toByteArray()
 
-    @Test
-    public void AesWithIVGcm() throws IOException {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
-
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
-
-        GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
-
-        byte[] key = new byte[32]; // 256bit key
-        byte[] iv = new byte[aesEngine.getUnderlyingCipher().getBlockSize()];
-
-        // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);
-        rand.nextBytes(iv);
-
-
-        byte[] encryptAES = CryptoAES.encryptWithIV(aesEngine, key, iv, bytes, logger);
-        byte[] decryptAES = CryptoAES.decryptWithIV(aesEngine, key, encryptAES, logger);
-
-        if (Arrays.equals(bytes, encryptAES)) {
-            fail("bytes should not be equal");
+        if (originalBytes.contentEquals(encryptBytes)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        if (!Arrays.equals(bytes, decryptAES)) {
-            fail("bytes not equal");
+        if (!originalBytes.contentEquals(decryptBytes)) {
+            Assert.fail("bytes not equal")
         }
     }
 
     // Note: this is still tested, but DO NOT USE BLOCK MODE as it does NOT provide authentication. GCM does.
-    @SuppressWarnings("deprecation")
+    @Suppress("deprecation")
     @Test
-    public void AesWithIVBlock() throws IOException {
-        byte[] bytes = "hello, my name is inigo montoya".getBytes();
+    @Throws(IOException::class)
+    fun AesBlockStream() {
+        val originalBytes = "hello, my name is inigo montoya".toByteArray()
+        var inputStream = ByteArrayInputStream(originalBytes)
+        var outputStream = ByteArrayOutputStream()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        PaddedBufferedBlockCipher aesEngine = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+        val aesEngine = PaddedBufferedBlockCipher(CBCBlockCipher(AESFastEngine()))
 
-        byte[] key = new byte[32]; // 256bit key
-        byte[] iv = new byte[aesEngine.getUnderlyingCipher().getBlockSize()];
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);
-        rand.nextBytes(iv);
+        rand.nextBytes(key) // 256bit key
+        rand.nextBytes(iv) // 128bit block size
 
 
-        byte[] encryptAES = CryptoAES.encryptWithIV(aesEngine, key, iv, bytes, logger);
-        byte[] decryptAES = CryptoAES.decryptWithIV(aesEngine, key, encryptAES, logger);
+        var success = encryptStream(aesEngine, key, iv, inputStream, outputStream, logger)
 
-        if (Arrays.equals(bytes, encryptAES)) {
-            fail("bytes should not be equal");
+        if (!success) {
+            Assert.fail("crypto was not successful")
         }
 
-        if (!Arrays.equals(bytes, decryptAES)) {
-            fail("bytes not equal");
+        val encryptBytes = outputStream.toByteArray()
+
+        inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        outputStream = ByteArrayOutputStream()
+
+        success = decryptStream(aesEngine, key, iv, inputStream, outputStream, logger)
+
+
+        if (!success) {
+            Assert.fail("crypto was not successful")
+        }
+
+        val decryptBytes = outputStream.toByteArray()
+
+        if (originalBytes.contentEquals(encryptBytes)) {
+            Assert.fail("bytes should not be equal")
+        }
+
+        if (!originalBytes.contentEquals(decryptBytes)) {
+            Assert.fail("bytes not equal")
         }
     }
 
     @Test
-    public void AesWithIVGcmStream() throws IOException {
-        byte[] originalBytes = "hello, my name is inigo montoya".getBytes();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(originalBytes);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    @Throws(IOException::class)
+    fun AesWithIVGcm() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
+        val aesEngine = GCMBlockCipher(AESEngine())
 
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
+        val key = ByteArray(32) // 256bit key
+        val iv = ByteArray(aesEngine.getUnderlyingCipher().getBlockSize())
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key
-        rand.nextBytes(iv); // 128bit block size
+        rand.nextBytes(key)
+        rand.nextBytes(iv)
 
 
-        boolean success = CryptoAES.encryptStreamWithIV(aesEngine, key, iv, inputStream, outputStream, logger);
+        val encryptAES = encryptWithIV(aesEngine, key, iv, bytes, logger)
+        val decryptAES = decryptWithIV(aesEngine, key, encryptAES, logger)
 
-        if (!success) {
-            fail("crypto was not successful");
+        if (bytes.contentEquals(encryptAES)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        byte[] encryptBytes = outputStream.toByteArray();
-
-        inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-        outputStream = new ByteArrayOutputStream();
-
-        success = CryptoAES.decryptStreamWithIV(aesEngine, key, inputStream, outputStream, logger);
-
-        if (!success) {
-            fail("crypto was not successful");
-        }
-
-        byte[] decryptBytes = outputStream.toByteArray();
-
-        if (Arrays.equals(originalBytes, encryptBytes)) {
-            fail("bytes should not be equal");
-        }
-
-        if (!Arrays.equals(originalBytes, decryptBytes)) {
-            fail("bytes not equal");
+        if (!bytes.contentEquals(decryptAES)) {
+            Assert.fail("bytes not equal")
         }
     }
 
     // Note: this is still tested, but DO NOT USE BLOCK MODE as it does NOT provide authentication. GCM does.
-    @SuppressWarnings("deprecation")
+    @Suppress("deprecation")
     @Test
-    public void AesWithIVBlockStream() throws IOException {
-        byte[] originalBytes = "hello, my name is inigo montoya".getBytes();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(originalBytes);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    @Throws(IOException::class)
+    fun AesWithIVBlock() {
+        val bytes = "hello, my name is inigo montoya".toByteArray()
 
-        SecureRandom rand = new SecureRandom(entropySeed.getBytes());
+        val rand = SecureRandom(entropySeed.toByteArray())
 
-        PaddedBufferedBlockCipher aesEngine = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESFastEngine()));
+        val aesEngine = PaddedBufferedBlockCipher(CBCBlockCipher(AESFastEngine()))
 
-        byte[] key = new byte[32];
-        byte[] iv = new byte[16];
+        val key = ByteArray(32) // 256bit key
+        val iv = ByteArray(aesEngine.getUnderlyingCipher().getBlockSize())
 
         // note: the IV needs to be VERY unique!
-        rand.nextBytes(key);  // 256bit key
-        rand.nextBytes(iv); // 128bit block size
+        rand.nextBytes(key)
+        rand.nextBytes(iv)
 
 
-        boolean success = CryptoAES.encryptStreamWithIV(aesEngine, key, iv, inputStream, outputStream, logger);
+        val encryptAES = encryptWithIV(aesEngine, key, iv, bytes, logger)
+        val decryptAES = decryptWithIV(aesEngine, key, encryptAES, logger)
+
+        if (bytes.contentEquals(encryptAES)) {
+            Assert.fail("bytes should not be equal")
+        }
+
+        if (!bytes.contentEquals(decryptAES)) {
+            Assert.fail("bytes not equal")
+        }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun AesWithIVGcmStream() {
+        val originalBytes = "hello, my name is inigo montoya".toByteArray()
+        var inputStream = ByteArrayInputStream(originalBytes)
+        var outputStream = ByteArrayOutputStream()
+
+        val rand = SecureRandom(entropySeed.toByteArray())
+
+        val aesEngine = GCMBlockCipher(AESEngine())
+
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
+
+        // note: the IV needs to be VERY unique!
+        rand.nextBytes(key) // 256bit key
+        rand.nextBytes(iv) // 128bit block size
+
+
+        var success = encryptStreamWithIV(aesEngine, key, iv, inputStream, outputStream, logger)
 
         if (!success) {
-            fail("crypto was not successful");
+            Assert.fail("crypto was not successful")
         }
 
-        byte[] encryptBytes = outputStream.toByteArray();
+        val encryptBytes = outputStream.toByteArray()
 
-        inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-        outputStream = new ByteArrayOutputStream();
+        inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        outputStream = ByteArrayOutputStream()
 
-        success = CryptoAES.decryptStreamWithIV(aesEngine, key, inputStream, outputStream, logger);
+        success = decryptStreamWithIV(aesEngine, key, inputStream, outputStream, logger)
+
+        if (!success) {
+            Assert.fail("crypto was not successful")
+        }
+
+        val decryptBytes = outputStream.toByteArray()
+
+        if (originalBytes.contentEquals(encryptBytes)) {
+            Assert.fail("bytes should not be equal")
+        }
+
+        if (!originalBytes.contentEquals(decryptBytes)) {
+            Assert.fail("bytes not equal")
+        }
+    }
+
+    // Note: this is still tested, but DO NOT USE BLOCK MODE as it does NOT provide authentication. GCM does.
+    @Suppress("deprecation")
+    @Test
+    @Throws(IOException::class)
+    fun AesWithIVBlockStream() {
+        val originalBytes = "hello, my name is inigo montoya".toByteArray()
+        var inputStream = ByteArrayInputStream(originalBytes)
+        var outputStream = ByteArrayOutputStream()
+
+        val rand = SecureRandom(entropySeed.toByteArray())
+
+        val aesEngine = PaddedBufferedBlockCipher(CBCBlockCipher(AESFastEngine()))
+
+        val key = ByteArray(32)
+        val iv = ByteArray(16)
+
+        // note: the IV needs to be VERY unique!
+        rand.nextBytes(key) // 256bit key
+        rand.nextBytes(iv) // 128bit block size
+
+
+        var success = encryptStreamWithIV(aesEngine, key, iv, inputStream, outputStream, logger)
+
+        if (!success) {
+            Assert.fail("crypto was not successful")
+        }
+
+        val encryptBytes = outputStream.toByteArray()
+
+        inputStream = ByteArrayInputStream(outputStream.toByteArray())
+        outputStream = ByteArrayOutputStream()
+
+        success = decryptStreamWithIV(aesEngine, key, inputStream, outputStream, logger)
 
 
         if (!success) {
-            fail("crypto was not successful");
+            Assert.fail("crypto was not successful")
         }
 
-        byte[] decryptBytes = outputStream.toByteArray();
+        val decryptBytes = outputStream.toByteArray()
 
-        if (Arrays.equals(originalBytes, encryptBytes)) {
-            fail("bytes should not be equal");
+        if (originalBytes.contentEquals(encryptBytes)) {
+            Assert.fail("bytes should not be equal")
         }
 
-        if (!Arrays.equals(originalBytes, decryptBytes)) {
-            fail("bytes not equal");
+        if (!originalBytes.contentEquals(decryptBytes)) {
+            Assert.fail("bytes not equal")
         }
+    }
+
+    companion object {
+        private const val entropySeed = "asdjhasdkljalksdfhlaks4356268909087s0dfgkjh255124515hasdg87"
     }
 }

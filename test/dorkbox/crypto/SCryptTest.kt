@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package dorkbox.crypto
 
-import dorkbox.bytes.toNoPrefixHexString
 import org.junit.Assert
 import org.junit.Test
 import java.io.IOException
@@ -41,7 +40,7 @@ class SCryptTest {
         p = 16
         dkLen = 64
         DK = "FDBABE1C9D3472007856E7190D01E9FE7C6AD7CBC8237830E77376634B3731622EAF30D92E22A3886FF109279D9830DAC727AFB94A83EE6D8360CBDFA2CC0640"
-        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toNoPrefixHexString(toUpperCase = true))
+        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toHexString(HexFormat.UpperCase))
 
 
         P = "pleaseletmein".toByteArray(charset("UTF-8"))
@@ -51,7 +50,7 @@ class SCryptTest {
         p = 1
         dkLen = 64
         DK = "7023BDCB3AFD7348461C06CD81FD38EBFDA8FBBA904F8E3EA9B543F6545DA1F2D5432955613F0FCF62D49705242A9AF9E61E85DC0D651E40DFCF017B45575887"
-        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toNoPrefixHexString(toUpperCase = true))
+        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toHexString(HexFormat.UpperCase))
 
 
         P = "pleaseletmein".toByteArray(charset("UTF-8"))
@@ -61,6 +60,6 @@ class SCryptTest {
         p = 1
         dkLen = 64
         DK = "2101CB9B6A511AAEADDBBE09CF70F881EC568D574A2FFD4DABE5EE9820ADAA478E56FD8F4BA5D09FFA1C6D927C40F4C337304049E8A952FBCBF45C6FA77A41A4"
-        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toNoPrefixHexString(toUpperCase = true))
+        Assert.assertEquals(DK, CryptoSCrypt.encrypt(P, S, N, r, p, dkLen).toHexString(HexFormat.UpperCase))
     }
 }

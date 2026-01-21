@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,309 +13,327 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Random;
-
-import javax.crypto.Cipher;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.ShortBufferException;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.modes.GCMBlockCipher;
-import org.bouncycastle.crypto.params.KeyParameter;
-import org.bouncycastle.crypto.params.ParametersWithIV;
-
+import org.bouncycastle.crypto.CipherParameters
+import org.bouncycastle.crypto.engines.AESEngine
+import org.bouncycastle.crypto.modes.GCMBlockCipher
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
+import java.lang.Byte
+import java.security.InvalidAlgorithmParameterException
+import java.security.InvalidKeyException
+import java.security.NoSuchAlgorithmException
+import java.security.SecureRandom
+import java.util.*
+import javax.crypto.Cipher
+import javax.crypto.NoSuchPaddingException
+import javax.crypto.ShortBufferException
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import kotlin.Array
+import kotlin.Boolean
+import kotlin.ByteArray
+import kotlin.Exception
+import kotlin.Long
+import kotlin.String
+import kotlin.Throws
 
 // See: https://stackoverflow.com/questions/25992131/slow-aes-gcm-encryption-and-decryption-with-java-8u20
 // java8 performance is 3 MB/s. BC is ~43 MB/s
-public
-class PerformanceTest {
-    private static String entropySeed = "asdjhasdkljalksdfhlaks4356268909087s0dfgkjh255124515hasdg87";
+object PerformanceTest {
+    private const val entropySeed = "asdjhasdkljalksdfhlaks4356268909087s0dfgkjh255124515hasdg87"
 
-    public static
-    void main(String[] args) throws Exception {
-        final int max = 5;
-        for (int i = 0; i < max; i++) {
-            System.out.println("Warming up " + (i+1) + " of " + max);
-            BC_Test(true);
-            Java_Test(true);
+    @Throws(Exception::class)
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val max = 5
+        for (i in 0..<max) {
+            println("Warming up " + (i + 1) + " of " + max)
+            BC_Test(true)
+            Java_Test(true)
         }
-        BC_Test(false);
-        Java_Test(false);
+        BC_Test(false)
+        Java_Test(false)
     }
 
-    static void BC_Test(boolean isWarmup) {
-        final byte[] bytes = new byte[64 * 1024];
-        byte[] encrypted = null;
-        final byte[] aesKey = new byte[32];
-        final byte[] aesIV = new byte[12];
+    fun BC_Test(isWarmup: Boolean) {
+        val bytes = ByteArray(64 * 1024)
+        var encrypted: ByteArray? = null
+        val aesKey = ByteArray(32)
+        val aesIV = ByteArray(12)
 
-        final Random random = new SecureRandom(entropySeed.getBytes());
-        random.nextBytes(bytes);
-        random.nextBytes(aesKey);
-        random.nextBytes(aesIV);
+        val random: Random = SecureRandom(entropySeed.toByteArray())
+        random.nextBytes(bytes)
+        random.nextBytes(aesKey)
+        random.nextBytes(aesIV)
 
-        int length = bytes.length;
+        var length = bytes.size
 
         if (!isWarmup) {
-            System.out.println("Benchmarking AES-256 GCM BOUNCYCASTLE encryption");
+            println("Benchmarking AES-256 GCM BOUNCYCASTLE encryption")
         }
 
-        long javaEncryptInputBytes = 0;
-        long javaEncryptStartTime = System.currentTimeMillis();
+        var javaEncryptInputBytes: Long = 0
+        val javaEncryptStartTime = System.currentTimeMillis()
 
         // convert to bouncycastle
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
 
-        long encryptInitTime = 0L;
-        long encryptUpdate1Time = 0L;
-        long encryptDoFinalTime = 0L;
+        var encryptInitTime = 0L
+        var encryptUpdate1Time = 0L
+        var encryptDoFinalTime = 0L
 
         while (System.currentTimeMillis() - javaEncryptStartTime < 10000) {
-            random.nextBytes(aesIV);
+            random.nextBytes(aesIV)
 
-            long n1 = System.nanoTime();
+            val n1 = System.nanoTime()
 
-            GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
-            aesEngine.reset();
-            aesEngine.init(true, aesIVAndKey);
+            val aesEngine = GCMBlockCipher(AESEngine())
+            aesEngine.reset()
+            aesEngine.init(true, aesIVAndKey)
 
             if (encrypted == null) {
-                int minSize = aesEngine.getOutputSize(length);
-                encrypted = new byte[minSize];
+                val minSize = aesEngine.getOutputSize(length)
+                encrypted = ByteArray(minSize)
             }
 
-            long n2 = System.nanoTime();
-            int actualLength = aesEngine.processBytes(bytes, 0, length, encrypted, 0);
+            val n2 = System.nanoTime()
+            var actualLength = aesEngine.processBytes(bytes, 0, length, encrypted, 0)
 
-            long n3 = System.nanoTime();
+            val n3 = System.nanoTime()
             try {
-                actualLength += aesEngine.doFinal(encrypted, actualLength);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("Unable to perform AES cipher.");
+                actualLength += aesEngine.doFinal(encrypted, actualLength)
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+                System.err.println("Unable to perform AES cipher.")
             }
 
-            if (encrypted.length != actualLength) {
-                byte[] result = new byte[actualLength];
-                System.arraycopy(encrypted, 0, result, 0, result.length);
-                encrypted = result;
+            if (encrypted.size != actualLength) {
+                val result = ByteArray(actualLength)
+                System.arraycopy(encrypted, 0, result, 0, result.size)
+                encrypted = result
             }
 
-            long n4 = System.nanoTime();
+            val n4 = System.nanoTime()
 
-            javaEncryptInputBytes += actualLength;
+            javaEncryptInputBytes += actualLength.toLong()
 
-            encryptInitTime = n2 - n1;
-            encryptUpdate1Time = n3 - n2;
-            encryptDoFinalTime = n4 - n3;
+            encryptInitTime = n2 - n1
+            encryptUpdate1Time = n3 - n2
+            encryptDoFinalTime = n4 - n3
         }
 
-        long javaEncryptEndTime = System.currentTimeMillis();
+        val javaEncryptEndTime = System.currentTimeMillis()
 
         if (!isWarmup) {
-            System.out.println("Time init (ns): " + encryptInitTime);
-            System.out.println("Time update (ns): " + encryptUpdate1Time);
-            System.out.println("Time do final (ns): " + encryptDoFinalTime);
-            System.out.println("Java calculated at " +
-                               (javaEncryptInputBytes / 1024 / 1024 / ((javaEncryptEndTime - javaEncryptStartTime) / 1000)) + " MB/s");
+            println("Time init (ns): " + encryptInitTime)
+            println("Time update (ns): " + encryptUpdate1Time)
+            println("Time do final (ns): " + encryptDoFinalTime)
+            println(
+                "Java calculated at " + (javaEncryptInputBytes / 1024 / 1024 / ((javaEncryptEndTime - javaEncryptStartTime) / 1000)) + " MB/s"
+            )
         }
 
 
         if (!isWarmup) {
-            System.out.println("Benchmarking AES-256 GCM BOUNCYCASTLE de-encryption");
+            println("Benchmarking AES-256 GCM BOUNCYCASTLE de-encryption")
         }
 
-        long javaDecryptInputBytes = 0;
-        long javaDecryptStartTime = System.currentTimeMillis();
+        var javaDecryptInputBytes: Long = 0
+        val javaDecryptStartTime = System.currentTimeMillis()
 
-        length = encrypted.length;
+        length = encrypted!!.size
 
-        long decryptInitTime = 0L;
-        long decryptUpdate1Time = 0L;
-        long decryptDoFinalTime = 0L;
+        var decryptInitTime = 0L
+        var decryptUpdate1Time = 0L
+        var decryptDoFinalTime = 0L
 
         while (System.currentTimeMillis() - javaDecryptStartTime < 10000) {
-            long n1 = System.nanoTime();
+            val n1 = System.nanoTime()
 
-            GCMBlockCipher aesEngine = new GCMBlockCipher(new AESEngine());
-            aesEngine.reset();
-            aesEngine.init(false, aesIVAndKey);
+            val aesEngine = GCMBlockCipher(AESEngine())
+            aesEngine.reset()
+            aesEngine.init(false, aesIVAndKey)
 
-            long n2 = System.nanoTime();
+            val n2 = System.nanoTime()
 
-            int actualLength = aesEngine.processBytes(encrypted, 0, length, bytes, 0);
+            var actualLength = aesEngine.processBytes(encrypted, 0, length, bytes, 0)
 
-            long n3 = System.nanoTime();
+            val n3 = System.nanoTime()
 
             try {
-                actualLength += aesEngine.doFinal(bytes, actualLength);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("Unable to perform AES cipher.");
+                actualLength += aesEngine.doFinal(bytes, actualLength)
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+                System.err.println("Unable to perform AES cipher.")
             }
 
 
-            long n4 = System.nanoTime();
+            val n4 = System.nanoTime()
 
-            javaDecryptInputBytes += actualLength;
+            javaDecryptInputBytes += actualLength.toLong()
 
-            decryptInitTime += n2 - n1;
-            decryptUpdate1Time += n3 - n2;
-            decryptDoFinalTime += n4 - n3;
+            decryptInitTime += n2 - n1
+            decryptUpdate1Time += n3 - n2
+            decryptDoFinalTime += n4 - n3
         }
-        long javaDecryptEndTime = System.currentTimeMillis();
+        val javaDecryptEndTime = System.currentTimeMillis()
 
         if (!isWarmup) {
-            System.out.println("Time init (ns): " + decryptInitTime);
-            System.out.println("Time update 1 (ns): " + decryptUpdate1Time);
-            System.out.println("Time do final (ns): " + decryptDoFinalTime);
-            System.out.println("Total bytes processed: " + javaDecryptInputBytes);
-            System.out.println("Java calculated at " +
-                               (javaDecryptInputBytes / 1024 / 1024 / ((javaDecryptEndTime - javaDecryptStartTime) / 1000)) + " MB/s");
+            println("Time init (ns): " + decryptInitTime)
+            println("Time update 1 (ns): " + decryptUpdate1Time)
+            println("Time do final (ns): " + decryptDoFinalTime)
+            println("Total bytes processed: " + javaDecryptInputBytes)
+            println(
+                "Java calculated at " + (javaDecryptInputBytes / 1024 / 1024 / ((javaDecryptEndTime - javaDecryptStartTime) / 1000)) + " MB/s"
+            )
         }
     }
 
-    static void Java_Test(boolean isWarmup)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException,
-                   ShortBufferException {
-        final byte[] bytes = new byte[64 * 1024];
-        byte[] encrypted = null;
-        final byte[] aesKey = new byte[32];
-        final byte[] aesIV = new byte[12];
+    @Throws(
+        NoSuchPaddingException::class,
+        NoSuchAlgorithmException::class,
+        InvalidAlgorithmParameterException::class,
+        InvalidKeyException::class,
+        ShortBufferException::class
+    )
+    fun Java_Test(isWarmup: Boolean) {
+        val bytes = ByteArray(64 * 1024)
+        var encrypted: ByteArray? = null
+        val aesKey = ByteArray(32)
+        val aesIV = ByteArray(12)
 
-        final Random random = new SecureRandom(entropySeed.getBytes());
-        random.nextBytes(bytes);
-        random.nextBytes(aesKey);
-        random.nextBytes(aesIV);
+        val random: Random = SecureRandom(entropySeed.toByteArray())
+        random.nextBytes(bytes)
+        random.nextBytes(aesKey)
+        random.nextBytes(aesIV)
 
-        int length = bytes.length;
+        var length = bytes.size
 
         if (!isWarmup) {
-            System.out.println("Benchmarking AES-256 GCM JVM encryption");
+            println("Benchmarking AES-256 GCM JVM encryption")
         }
 
-        long javaEncryptInputBytes = 0;
-        long javaEncryptStartTime = System.currentTimeMillis();
+        var javaEncryptInputBytes: Long = 0
+        val javaEncryptStartTime = System.currentTimeMillis()
 
-        final Cipher javaAES256 = Cipher.getInstance("AES/GCM/NoPadding");
+        val javaAES256 = Cipher.getInstance("AES/GCM/NoPadding")
 
-        long encryptInitTime = 0L;
-        long encryptUpdate1Time = 0L;
-        long encryptDoFinalTime = 0L;
+        var encryptInitTime = 0L
+        var encryptUpdate1Time = 0L
+        var encryptDoFinalTime = 0L
 
         while (System.currentTimeMillis() - javaEncryptStartTime < 10000) {
-            random.nextBytes(aesIV);
+            random.nextBytes(aesIV)
 
-            long n1 = System.nanoTime();
+            val n1 = System.nanoTime()
 
-            javaAES256.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(aesKey, "AES"), new GCMParameterSpec(16 * Byte.SIZE, aesIV));
+            javaAES256.init(Cipher.ENCRYPT_MODE, SecretKeySpec(aesKey, "AES"), GCMParameterSpec(16 * Byte.SIZE, aesIV))
 
             if (encrypted == null) {
-                int minSize = javaAES256.getOutputSize(length);
-                encrypted = new byte[minSize];
+                val minSize = javaAES256.getOutputSize(length)
+                encrypted = ByteArray(minSize)
             }
 
-            long n2 = System.nanoTime();
-            int actualLength = javaAES256.update(bytes, 0, bytes.length, encrypted, 0);
+            val n2 = System.nanoTime()
+            var actualLength = javaAES256.update(bytes, 0, bytes.size, encrypted, 0)
 
-            long n3 = System.nanoTime();
+            val n3 = System.nanoTime()
             try {
-                actualLength += javaAES256.doFinal(encrypted, actualLength);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("Unable to perform AES cipher.");
+                actualLength += javaAES256.doFinal(encrypted, actualLength)
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+                System.err.println("Unable to perform AES cipher.")
             }
 
-            if (encrypted.length != actualLength) {
-                byte[] result = new byte[actualLength];
-                System.arraycopy(encrypted, 0, result, 0, result.length);
-                encrypted = result;
+            if (encrypted.size != actualLength) {
+                val result = ByteArray(actualLength)
+                System.arraycopy(encrypted, 0, result, 0, result.size)
+                encrypted = result
             }
 
-            long n4 = System.nanoTime();
+            val n4 = System.nanoTime()
 
-            javaEncryptInputBytes += actualLength;
+            javaEncryptInputBytes += actualLength.toLong()
 
-            encryptInitTime = n2 - n1;
-            encryptUpdate1Time = n3 - n2;
-            encryptDoFinalTime = n4 - n3;
+            encryptInitTime = n2 - n1
+            encryptUpdate1Time = n3 - n2
+            encryptDoFinalTime = n4 - n3
         }
 
-        long javaEncryptEndTime = System.currentTimeMillis();
+        val javaEncryptEndTime = System.currentTimeMillis()
 
         if (!isWarmup) {
-            System.out.println("Time init (ns): " + encryptInitTime);
-            System.out.println("Time update (ns): " + encryptUpdate1Time);
-            System.out.println("Time do final (ns): " + encryptDoFinalTime);
-            System.out.println("Java calculated at " +
-                               (javaEncryptInputBytes / 1024 / 1024 / ((javaEncryptEndTime - javaEncryptStartTime) / 1000)) + " MB/s");
+            println("Time init (ns): " + encryptInitTime)
+            println("Time update (ns): " + encryptUpdate1Time)
+            println("Time do final (ns): " + encryptDoFinalTime)
+            println(
+                "Java calculated at " + (javaEncryptInputBytes / 1024 / 1024 / ((javaEncryptEndTime - javaEncryptStartTime) / 1000)) + " MB/s"
+            )
 
-            System.out.println("Benchmarking AES-256 GCM decryption");
+            println("Benchmarking AES-256 GCM decryption")
         }
 
         if (!isWarmup) {
-            System.out.println("Benchmarking AES-256 GCM JVM de-encryption");
+            println("Benchmarking AES-256 GCM JVM de-encryption")
         }
 
 
-        long javaDecryptInputBytes = 0;
-        long javaDecryptStartTime = System.currentTimeMillis();
+        var javaDecryptInputBytes: Long = 0
+        val javaDecryptStartTime = System.currentTimeMillis()
 
-        final GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(16 * Byte.SIZE, aesIV);
-        final SecretKeySpec keySpec = new SecretKeySpec(aesKey, "AES");
+        val gcmParameterSpec = GCMParameterSpec(16 * Byte.SIZE, aesIV)
+        val keySpec = SecretKeySpec(aesKey, "AES")
 
 
-        length = encrypted.length;
+        length = encrypted!!.size
 
-        long decryptInitTime = 0L;
-        long decryptUpdate1Time = 0L;
-        long decryptDoFinalTime = 0L;
+        var decryptInitTime = 0L
+        var decryptUpdate1Time = 0L
+        var decryptDoFinalTime = 0L
 
         while (System.currentTimeMillis() - javaDecryptStartTime < 10000) {
-            long n1 = System.nanoTime();
+            val n1 = System.nanoTime()
 
-            javaAES256.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec);
+            javaAES256.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec)
 
-            long n2 = System.nanoTime();
+            val n2 = System.nanoTime()
 
-            int actualLength = javaAES256.update(encrypted, 0, length, bytes, 0);
+            var actualLength = javaAES256.update(encrypted, 0, length, bytes, 0)
 
-            long n3 = System.nanoTime();
+            val n3 = System.nanoTime()
 
             try {
-                actualLength += javaAES256.doFinal(bytes, actualLength);
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.err.println("Unable to perform AES cipher.");
+                actualLength += javaAES256.doFinal(bytes, actualLength)
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+                System.err.println("Unable to perform AES cipher.")
             }
 
 
-            long n4 = System.nanoTime();
+            val n4 = System.nanoTime()
 
-            javaDecryptInputBytes += actualLength;
+            javaDecryptInputBytes += actualLength.toLong()
 
-            decryptInitTime += n2 - n1;
-            decryptUpdate1Time += n3 - n2;
-            decryptDoFinalTime += n4 - n3;
+            decryptInitTime += n2 - n1
+            decryptUpdate1Time += n3 - n2
+            decryptDoFinalTime += n4 - n3
         }
-        long javaDecryptEndTime = System.currentTimeMillis();
+        val javaDecryptEndTime = System.currentTimeMillis()
 
         if (!isWarmup) {
-            System.out.println("Time init (ns): " + decryptInitTime);
-            System.out.println("Time update 1 (ns): " + decryptUpdate1Time);
-            System.out.println("Time do final (ns): " + decryptDoFinalTime);
-            System.out.println("Total bytes processed: " + javaDecryptInputBytes);
-            System.out.println("Java calculated at " +
-                               (javaDecryptInputBytes / 1024 / 1024 / ((javaDecryptEndTime - javaDecryptStartTime) / 1000)) + " MB/s");
+            println("Time init (ns): " + decryptInitTime)
+            println("Time update 1 (ns): " + decryptUpdate1Time)
+            println("Time do final (ns): " + decryptDoFinalTime)
+            println("Total bytes processed: " + javaDecryptInputBytes)
+            println(
+                "Java calculated at " + (javaDecryptInputBytes / 1024 / 1024 / ((javaDecryptEndTime - javaDecryptStartTime) / 1000)) + " MB/s"
+            )
         }
     }
 }

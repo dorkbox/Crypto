@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,158 +13,152 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import static org.junit.Assert.fail;
+import dorkbox.crypto.CryptoDSA.generateKeyPair
+import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.crypto.params.*
+import org.junit.Assert
+import org.junit.Test
+import java.io.IOException
+import java.math.BigInteger
+import java.security.SecureRandom
+import java.util.*
 
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.Calendar;
-import java.util.Date;
-
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.junit.Test;
-
-
-public class x509Test {
-
-    private static String entropySeed = "asdjhaffasdgfaasttjjhgpx600gn,-356268909087s0dfg4-42kjh255124515hasdg87";
-
+class x509Test {
     @Test
-    public void EcdsaCertificate() throws IOException {
+    @Throws(IOException::class)
+    fun EcdsaCertificate() {
         // create the certificate
-        Calendar expiry = Calendar.getInstance();
-        expiry.add(Calendar.DAY_OF_YEAR, 360);
+        val expiry = Calendar.getInstance()
+        expiry.add(Calendar.DAY_OF_YEAR, 360)
 
-        Date startDate = new Date();              // time from which certificate is valid
-        Date expiryDate = expiry.getTime();       // time after which certificate is not valid
-        BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis());     // serial number for certificate
-
-
-        AsymmetricCipherKeyPair generateKeyPair = CryptoECC.generateKeyPair(CryptoECC.p521_curve, new SecureRandom());  // key name from Crypto class
-        ECPrivateKeyParameters privateKey = (ECPrivateKeyParameters) generateKeyPair.getPrivate();
-        ECPublicKeyParameters publicKey = (ECPublicKeyParameters) generateKeyPair.getPublic();
+        val startDate = Date() // time from which certificate is valid
+        val expiryDate = expiry.getTime() // time after which certificate is not valid
+        val serialNumber = BigInteger.valueOf(System.currentTimeMillis()) // serial number for certificate
 
 
+        val generateKeyPair = CryptoECC.generateKeyPair(CryptoECC.p521_curve, SecureRandom()) // key name from Crypto class
+        val privateKey = generateKeyPair.private as ECPrivateKeyParameters
+        val publicKey = generateKeyPair.public as ECPublicKeyParameters
 
-        X509CertificateHolder ECDSAx509Certificate = CryptoX509.ECDSA.createCertHolder("SHA384",
-                                                                                        startDate, expiryDate,
-                                                                                        new X500Name("CN=Test"), new X500Name("CN=Test"), serialNumber,
-                                                                                        privateKey, publicKey);
+
+
+        val ECDSAx509Certificate = CryptoX509.ECDSA.createCertHolder(
+            "SHA384", startDate, expiryDate, X500Name("CN=Test"), X500Name("CN=Test"), serialNumber, privateKey, publicKey
+        )
         // make sure it's a valid cert.
         if (ECDSAx509Certificate != null) {
-            boolean valid = CryptoX509.ECDSA.validate(ECDSAx509Certificate);
+            val valid = CryptoX509.ECDSA.validate(ECDSAx509Certificate)
 
             if (!valid) {
-                fail("Unable to verify a x509 certificate.");
+                Assert.fail("Unable to verify a x509 certificate.")
             }
-        } else {
-            fail("Unable to create a x509 certificate.");
+        }
+        else {
+            Assert.fail("Unable to create a x509 certificate.")
         }
 
         // now sign something, then verify the signature.
-        byte[] data = "My keyboard is awesome".getBytes();
-        byte[] signatureBlock = CryptoX509.createSignature(data, ECDSAx509Certificate, privateKey);
+        val data = "My keyboard is awesome".toByteArray()
+        val signatureBlock = CryptoX509.createSignature(data, ECDSAx509Certificate!!, privateKey)
 
-        boolean verifySignature = CryptoX509.ECDSA.verifySignature(signatureBlock, publicKey);
+        val verifySignature = CryptoX509.ECDSA.verifySignature(signatureBlock!!, publicKey)
 
         if (!verifySignature) {
-            fail("Unable to verify a x509 certificate signature.");
+            Assert.fail("Unable to verify a x509 certificate signature.")
         }
     }
 
     @Test
-    public void DsaCertificate() throws IOException {
+    @Throws(IOException::class)
+    fun DsaCertificate() {
         // create the certificate
-        Calendar expiry = Calendar.getInstance();
-        expiry.add(Calendar.DAY_OF_YEAR, 360);
+        val expiry = Calendar.getInstance()
+        expiry.add(Calendar.DAY_OF_YEAR, 360)
 
-        Date startDate = new Date();              // time from which certificate is valid
-        Date expiryDate = expiry.getTime();       // time after which certificate is not valid
-        BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis());     // serial number for certificate
-
-
-        @SuppressWarnings("deprecation")
-        AsymmetricCipherKeyPair generateKeyPair = CryptoDSA.generateKeyPair(new SecureRandom(entropySeed.getBytes()), 1024);
+        val startDate = Date() // time from which certificate is valid
+        val expiryDate = expiry.getTime() // time after which certificate is not valid
+        val serialNumber = BigInteger.valueOf(System.currentTimeMillis()) // serial number for certificate
 
 
-        DSAPrivateKeyParameters privateKey = (DSAPrivateKeyParameters) generateKeyPair.getPrivate();
-        DSAPublicKeyParameters publicKey = (DSAPublicKeyParameters) generateKeyPair.getPublic();
+        val generateKeyPair = generateKeyPair(SecureRandom(entropySeed.toByteArray()), 1024)
+
+
+        val privateKey = generateKeyPair.private as DSAPrivateKeyParameters
+        val publicKey = generateKeyPair.public as DSAPublicKeyParameters
 
 
 
-        X509CertificateHolder DSAx509Certificate = CryptoX509.DSA.createCertHolder(startDate, expiryDate,
-                                                                                   new X500Name("CN=Test"), new X500Name("CN=Test"), serialNumber,
-                                                                                   privateKey, publicKey);
+        val DSAx509Certificate = CryptoX509.DSA.createCertHolder(
+            startDate, expiryDate, X500Name("CN=Test"), X500Name("CN=Test"), serialNumber, privateKey, publicKey
+        )
         // make sure it's a valid cert.
         if (DSAx509Certificate != null) {
-            boolean valid = CryptoX509.DSA.validate(DSAx509Certificate);
+            val valid = CryptoX509.DSA.validate(DSAx509Certificate)
 
             if (!valid) {
-                fail("Unable to verify a x509 certificate.");
+                Assert.fail("Unable to verify a x509 certificate.")
             }
-        } else {
-            fail("Unable to create a x509 certificate.");
+        }
+        else {
+            Assert.fail("Unable to create a x509 certificate.")
         }
 
         // now sign something, then verify the signature.
-        byte[] data = "My keyboard is awesome".getBytes();
-        byte[] signatureBlock = CryptoX509.createSignature(data, DSAx509Certificate, privateKey);
+        val data = "My keyboard is awesome".toByteArray()
+        val signatureBlock = CryptoX509.createSignature(data, DSAx509Certificate!!, privateKey)
 
-        boolean verifySignature = CryptoX509.DSA.verifySignature(signatureBlock, publicKey);
+        val verifySignature = CryptoX509.DSA.verifySignature(signatureBlock!!, publicKey)
 
         if (!verifySignature) {
-            fail("Unable to verify a x509 certificate signature.");
+            Assert.fail("Unable to verify a x509 certificate signature.")
         }
     }
 
     @Test
-    public void RsaCertificate() throws IOException {
+    @Throws(IOException::class)
+    fun RsaCertificate() {
         // create the certificate
-        Calendar expiry = Calendar.getInstance();
-        expiry.add(Calendar.DAY_OF_YEAR, 360);
+        val expiry = Calendar.getInstance()
+        expiry.add(Calendar.DAY_OF_YEAR, 360)
 
-        Date startDate = new Date();              // time from which certificate is valid
-        Date expiryDate = expiry.getTime();       // time after which certificate is not valid
-        BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis());     // serial number for certificate
+        val startDate = Date() // time from which certificate is valid
+        val expiryDate = expiry.getTime() // time after which certificate is not valid
+        val serialNumber = BigInteger.valueOf(System.currentTimeMillis()) // serial number for certificate
 
-        @SuppressWarnings("deprecation")
-        AsymmetricCipherKeyPair generateKeyPair = CryptoRSA.generateKeyPair(new SecureRandom(entropySeed.getBytes()), 1024);
-        RSAPrivateCrtKeyParameters privateKey = (RSAPrivateCrtKeyParameters) generateKeyPair.getPrivate();
-        RSAKeyParameters publicKey = (RSAKeyParameters) generateKeyPair.getPublic();
+        val generateKeyPair = CryptoRSA.generateKeyPair(SecureRandom(entropySeed.toByteArray()), 1024)
+        val privateKey = generateKeyPair.private as RSAPrivateCrtKeyParameters
+        val publicKey = generateKeyPair.public as RSAKeyParameters
 
 
-        X509CertificateHolder RSAx509Certificate = CryptoX509.RSA.createCertHolder(startDate, expiryDate,
-                                                                                   new X500Name("CN=Test"), new X500Name("CN=Test"), serialNumber,
-                                                                                   privateKey, publicKey);
+        val RSAx509Certificate = CryptoX509.RSA.createCertHolder(
+            startDate, expiryDate, X500Name("CN=Test"), X500Name("CN=Test"), serialNumber, privateKey, publicKey
+        )
         // make sure it's a valid cert.
         if (RSAx509Certificate != null) {
-            boolean valid = CryptoX509.RSA.validate(RSAx509Certificate);
+            val valid = CryptoX509.RSA.validate(RSAx509Certificate)
 
             if (!valid) {
-                fail("Unable to verify a x509 certificate.");
+                Assert.fail("Unable to verify a x509 certificate.")
             }
-        } else {
-            fail("Unable to create a x509 certificate.");
+        }
+        else {
+            Assert.fail("Unable to create a x509 certificate.")
         }
 
         // now sign something, then verify the signature.
-        byte[] data = "My keyboard is awesome".getBytes();
-        byte[] signatureBlock = CryptoX509.createSignature(data, RSAx509Certificate, privateKey);
+        val data = "My keyboard is awesome".toByteArray()
+        val signatureBlock = CryptoX509.createSignature(data, RSAx509Certificate!!, privateKey)
 
-        boolean verifySignature = CryptoX509.RSA.verifySignature(signatureBlock, publicKey);
+        val verifySignature = CryptoX509.RSA.verifySignature(signatureBlock!!, publicKey)
 
         if (!verifySignature) {
-            fail("Unable to verify a x509 certificate signature.");
+            Assert.fail("Unable to verify a x509 certificate signature.")
         }
+    }
+
+    companion object {
+        private const val entropySeed = "asdjhaffasdgfaasttjjhgpx600gn,-356268909087s0dfg4-42kjh255124515hasdg87"
     }
 }
