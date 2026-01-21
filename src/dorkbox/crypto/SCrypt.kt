@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,16 +70,6 @@ object SCrypt {
      *
      * @return The hashed password.
      */
-    /**
-     * Hash the supplied plaintext password and generate output using default parameters
-     *
-     *
-     * The password chars are no longer valid after this call
-     *
-     * @param password  Password.
-     * @param salt      Salt parameter
-     */
-    @JvmOverloads
     fun encrypt(password: CharArray, salt: ByteArray, N: Int = 16384, r: Int = 32, p: Int = 1, dkLen: Int = 64): String {
         // Note: this saves the char array in UTF-16 format of bytes.
         val passwordBytes: ByteArray = charToBytes(password)

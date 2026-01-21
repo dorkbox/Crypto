@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,62 +13,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.Arrays;
-
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.agreement.ECDHCBasicAgreement;
-import org.bouncycastle.crypto.digests.SHA384Digest;
-import org.bouncycastle.crypto.digests.SHA512Digest;
-import org.bouncycastle.crypto.engines.IESEngine;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.generators.KDF2BytesGenerator;
-import org.bouncycastle.crypto.macs.HMac;
-import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-import org.bouncycastle.crypto.params.IESParameters;
-import org.bouncycastle.crypto.params.IESWithCipherParameters;
-import org.bouncycastle.crypto.params.ParametersWithRandom;
-import org.bouncycastle.crypto.signers.ECDSASigner;
-import org.bouncycastle.jcajce.provider.util.DigestFactory;
-import org.bouncycastle.jce.ECNamedCurveTable;
-import org.bouncycastle.jce.spec.ECParameterSpec;
-import org.bouncycastle.math.ec.ECFieldElement;
-import org.bouncycastle.math.ec.ECPoint;
-import org.slf4j.Logger;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.CipherParameters
+import org.bouncycastle.crypto.agreement.ECDHCBasicAgreement
+import org.bouncycastle.crypto.digests.SHA384Digest
+import org.bouncycastle.crypto.digests.SHA512Digest
+import org.bouncycastle.crypto.engines.IESEngine
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.generators.KDF2BytesGenerator
+import org.bouncycastle.crypto.macs.HMac
+import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
+import org.bouncycastle.crypto.params.*
+import org.bouncycastle.crypto.signers.ECDSASigner
+import org.bouncycastle.jcajce.provider.util.DigestFactory
+import org.bouncycastle.jce.ECNamedCurveTable
+import org.bouncycastle.jce.spec.ECParameterSpec
+import org.slf4j.Logger
+import java.math.BigInteger
+import java.security.SecureRandom
 
 /**
  * ECC crypto functions
  */
-public final
-class CryptoECC {
+object CryptoECC {
     /**
      * Gets the version number.
      */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
+    const val version = Crypto.version
 
-    public static final String p521_curve = "secp521r1";
-    public static final String curve25519 = "curve25519";
-    public static final String default_curve = curve25519;
+    const val p521_curve: String = "secp521r1"
+    const val curve25519: String = "curve25519"
+    val default_curve: String = curve25519
 
-    public static final int macSize = 512;
+    const val macSize: Int = 512
+
     // on NIST vs 25519 vs Brainpool, see:
     //  - http://ogryb.blogspot.de/2014/11/why-i-dont-trust-nist-p-256.html
     //  - http://credelius.com/credelius/?p=97
     //  - http://safecurves.cr.yp.to/
     // we should be using 25519, because NIST and brainpool are "unsafe". Brainpool is "more random" than 25519, but is still not considered safe.
-
     // more info about ECC from:
     // http://www.johannes-bauer.com/compsci/ecc/?menuid=4
     // http://stackoverflow.com/questions/7419183/problems-implementing-ecdh-on-android-using-bouncycastle
@@ -77,341 +62,311 @@ class CryptoECC {
     // https://github.com/nelenkov/ecdh-kx/blob/master/src/org/nick/ecdhkx/Crypto.java
     // http://nelenkov.blogspot.com/2011/12/using-ecdh-on-android.html
     // http://www.secg.org/collateral/sec1_final.pdf
-
     /**
      * Uses SHA512
      */
-    public static
-    IESEngine createEngine() {
-        return new IESEngine(new ECDHCBasicAgreement(), new KDF2BytesGenerator(new SHA384Digest()), new HMac(new SHA512Digest()));
+    fun createEngine(): IESEngine {
+        return IESEngine(ECDHCBasicAgreement(), KDF2BytesGenerator(SHA384Digest()), HMac(SHA512Digest()))
     }
 
     /**
      * Uses SHA512
      */
-    public static
-    IESEngine createEngine(PaddedBufferedBlockCipher aesEngine) {
-        return new IESEngine(new ECDHCBasicAgreement(),
-                             new KDF2BytesGenerator(new SHA384Digest()),
-                             new HMac(new SHA512Digest()),
-                             aesEngine);
+    fun createEngine(aesEngine: PaddedBufferedBlockCipher?): IESEngine {
+        return IESEngine(
+            ECDHCBasicAgreement(), KDF2BytesGenerator(SHA384Digest()), HMac(SHA512Digest()), aesEngine
+        )
     }
 
     /**
      * These parameters are shared between the two parties. These are a NONCE (use ONCE number!!)
      */
-    public static
-    IESParameters generateSharedParameters(SecureRandom secureRandom) {
-
-        int macSize = CryptoECC.macSize; // must be the MAC size
+    fun generateSharedParameters(secureRandom: SecureRandom): IESParameters {
+        val macSize = macSize // must be the MAC size
 
         // MUST be random EACH TIME encrypt/sign happens!
-        byte[] derivation = new byte[macSize / 8];
-        byte[] encoding = new byte[macSize / 8];
+        val derivation = ByteArray(macSize / 8)
+        val encoding = ByteArray(macSize / 8)
 
-        secureRandom.nextBytes(derivation);
-        secureRandom.nextBytes(encoding);
+        secureRandom.nextBytes(derivation)
+        secureRandom.nextBytes(encoding)
 
-        return new IESParameters(derivation, encoding, macSize);
+        return IESParameters(derivation, encoding, macSize)
     }
 
     /**
      * AES-256 ONLY!
      */
-    public static
-    IESWithCipherParameters generateSharedParametersWithCipher(SecureRandom secureRandom) {
-        int macSize = CryptoECC.macSize; // must be the MAC size
+    fun generateSharedParametersWithCipher(secureRandom: SecureRandom): IESWithCipherParameters {
+        val macSize = macSize // must be the MAC size
 
-        byte[] derivation = new byte[macSize / 8]; // MUST be random EACH TIME encrypt/sign happens!
-        byte[] encoding = new byte[macSize / 8];
+        val derivation = ByteArray(macSize / 8) // MUST be random EACH TIME encrypt/sign happens!
+        val encoding = ByteArray(macSize / 8)
 
-        secureRandom.nextBytes(derivation);
-        secureRandom.nextBytes(encoding);
+        secureRandom.nextBytes(derivation)
+        secureRandom.nextBytes(encoding)
 
-        return new IESWithCipherParameters(derivation, encoding, macSize, 256);
+        return IESWithCipherParameters(derivation, encoding, macSize, 256)
     }
 
-    public static
-    AsymmetricCipherKeyPair generateKeyPair(String eccCurveName, SecureRandom secureRandom) {
-        ECParameterSpec eccSpec = ECNamedCurveTable.getParameterSpec(eccCurveName);
+    fun generateKeyPair(eccCurveName: String, secureRandom: SecureRandom): AsymmetricCipherKeyPair {
+        val eccSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec(eccCurveName)
 
-        return generateKeyPair(eccSpec, secureRandom);
+        return generateKeyPair(eccSpec, secureRandom)
     }
 
-    public static
-    AsymmetricCipherKeyPair generateKeyPair(ECParameterSpec eccSpec, SecureRandom secureRandom) {
-        ECKeyGenerationParameters ecParams = new ECKeyGenerationParameters(new ECDomainParameters(eccSpec.getCurve(),
-                                                                                                  eccSpec.getG(),
-                                                                                                  eccSpec.getN()), secureRandom);
+    fun generateKeyPair(eccSpec: ECParameterSpec, secureRandom: SecureRandom): AsymmetricCipherKeyPair {
+        val ecParams = ECKeyGenerationParameters(ECDomainParameters(eccSpec.curve, eccSpec.g, eccSpec.n), secureRandom)
 
-        ECKeyPairGenerator ecKeyGen = new ECKeyPairGenerator();
-        ecKeyGen.init(ecParams);
+        val ecKeyGen = ECKeyPairGenerator()
+        ecKeyGen.init(ecParams)
 
-        return ecKeyGen.generateKeyPair();
+        return ecKeyGen.generateKeyPair()
     }
 
     /**
      * ECC encrypts data with a specified key.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] encrypt(IESEngine eccEngine,
-                   CipherParameters private1,
-                   CipherParameters public2,
-                   IESParameters cipherParams,
-                   byte[] message,
-                   Logger logger) {
+    fun encrypt(
+        eccEngine: IESEngine,
+        private1: CipherParameters?,
+        public2: CipherParameters?,
+        cipherParams: IESParameters?,
+        message: ByteArray,
+        logger: Logger?
+    ): ByteArray? {
+        eccEngine.init(true, private1, public2, cipherParams)
 
-        eccEngine.init(true, private1, public2, cipherParams);
-
-        //noinspection Duplicates
         try {
-            return eccEngine.processBlock(message, 0, message.length);
-        } catch (Exception e) {
+            return eccEngine.processBlock(message, 0, message.size)
+        }
+        catch (e: Exception) {
             if (logger != null) {
-                logger.error("Unable to perform ECC cipher.", e);
+                logger.error("Unable to perform ECC cipher.", e)
             }
-            return new byte[0];
+            return null
         }
     }
 
     /**
      * ECC decrypt data with a specified key.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] decrypt(IESEngine eccEngine,
-                   CipherParameters private2,
-                   CipherParameters public1,
-                   IESParameters cipherParams,
-                   byte[] encrypted,
-                   Logger logger) {
+    fun decrypt(
+        eccEngine: IESEngine,
+        private2: CipherParameters?,
+        public1: CipherParameters?,
+        cipherParams: IESParameters?,
+        encrypted: ByteArray,
+        logger: Logger?
+    ): ByteArray? {
+        eccEngine.init(false, private2, public1, cipherParams)
 
-        eccEngine.init(false, private2, public1, cipherParams);
-
-        //noinspection Duplicates
         try {
-            return eccEngine.processBlock(encrypted, 0, encrypted.length);
-        } catch (Exception e) {
+            return eccEngine.processBlock(encrypted, 0, encrypted.size)
+        }
+        catch (e: Exception) {
             if (logger != null) {
-                logger.error("Unable to perform ECC cipher.", e);
+                logger.error("Unable to perform ECC cipher.", e)
             }
-            return new byte[0];
+            return ByteArray(0)
         }
     }
 
-    public static
-    boolean compare(ECPrivateKeyParameters privateA, ECPrivateKeyParameters privateB) {
-        ECDomainParameters parametersA = privateA.getParameters();
-        ECDomainParameters parametersB = privateB.getParameters();
+    fun compare(privateA: ECPrivateKeyParameters, privateB: ECPrivateKeyParameters): Boolean {
+        val parametersA = privateA.parameters
+        val parametersB = privateB.parameters
 
         // is it the same curve?
-        boolean equals = parametersA.getCurve()
-                                    .equals(parametersB.getCurve());
+        var equals = parametersA.curve.equals(parametersB.curve)
         if (!equals) {
-            return false;
+            return false
         }
 
-        equals = parametersA.getG()
-                            .equals(parametersB.getG());
+        equals = parametersA.g.equals(parametersB.g)
         if (!equals) {
-            return false;
+            return false
         }
 
 
-        equals = parametersA.getH()
-                            .equals(parametersB.getH());
+        equals = (parametersA.h == parametersB.h)
         if (!equals) {
-            return false;
+            return false
         }
 
-        equals = parametersA.getN()
-                            .equals(parametersB.getN());
+        equals = (parametersA.n == parametersB.n)
         if (!equals) {
-            return false;
+            return false
         }
 
-        equals = privateA.getD()
-                         .equals(privateB.getD());
+        equals = (privateA.d == privateB.d)
 
-        return equals;
+        return equals
     }
 
     /**
      * @return true if publicA and publicB are NOT NULL, and are both equal to eachother
      */
-    @SuppressWarnings({"RedundantIfStatement", "SpellCheckingInspection"})
-    public static
-    boolean compare(ECPublicKeyParameters publicA, ECPublicKeyParameters publicB) {
+    @Suppress("SpellCheckingInspection")
+    fun compare(publicA: ECPublicKeyParameters?, publicB: ECPublicKeyParameters?): Boolean {
         if (publicA == null || publicB == null) {
-            return false;
+            return false
         }
 
 
-        ECDomainParameters parametersA = publicA.getParameters();
-        ECDomainParameters parametersB = publicB.getParameters();
+        val parametersA = publicA.parameters
+        val parametersB = publicB.parameters
 
         // is it the same curve?
-        boolean equals = parametersA.getCurve()
-                                    .equals(parametersB.getCurve());
+        var equals = parametersA.curve.equals(parametersB.curve)
         if (!equals) {
-            return false;
+            return false
         }
 
-        equals = parametersA.getG()
-                            .equals(parametersB.getG());
+        equals = parametersA.g.equals(parametersB.g)
         if (!equals) {
-            return false;
-        }
-
-
-        equals = parametersA.getH()
-                            .equals(parametersB.getH());
-        if (!equals) {
-            return false;
-        }
-
-        equals = parametersA.getN()
-                            .equals(parametersB.getN());
-        if (!equals) {
-            return false;
+            return false
         }
 
 
-        ECPoint normalizeA = publicA.getQ()
-                                    .normalize();
-        ECPoint normalizeB = publicB.getQ()
-                                    .normalize();
-
-
-        ECFieldElement xCoordA = normalizeA.getXCoord();
-        ECFieldElement xCoordB = normalizeB.getXCoord();
-
-        equals = xCoordA.equals(xCoordB);
+        equals = (parametersA.h == parametersB.h)
         if (!equals) {
-            return false;
+            return false
         }
 
-        ECFieldElement yCoordA = normalizeA.getYCoord();
-        ECFieldElement yCoordB = normalizeB.getYCoord();
-
-        equals = yCoordA.equals(yCoordB);
+        equals = (parametersA.n == parametersB.n)
         if (!equals) {
-            return false;
+            return false
         }
 
-        return true;
+
+        val normalizeA = publicA.q.normalize()
+        val normalizeB = publicB.q.normalize()
+
+
+        val xCoordA = normalizeA.xCoord
+        val xCoordB = normalizeB.xCoord
+
+        equals = xCoordA == xCoordB
+        if (!equals) {
+            return false
+        }
+
+        val yCoordA = normalizeA.yCoord
+        val yCoordB = normalizeB.yCoord
+
+        equals = yCoordA == yCoordB
+        if (!equals) {
+            return false
+        }
+
+        return true
     }
 
-    @SuppressWarnings("RedundantIfStatement")
-    public static
-    boolean compare(IESParameters cipherAParams, IESParameters cipherBParams) {
-        if (!Arrays.equals(cipherAParams.getDerivationV(), cipherBParams.getDerivationV())) {
-            return false;
+    fun compare(cipherAParams: IESParameters, cipherBParams: IESParameters): Boolean {
+        if (!cipherAParams.derivationV.contentEquals(cipherBParams.derivationV)) {
+            return false
         }
-        if (!Arrays.equals(cipherAParams.getEncodingV(), cipherBParams.getEncodingV())) {
-            return false;
+        if (!cipherAParams.encodingV.contentEquals(cipherBParams.encodingV)) {
+            return false
         }
 
-        if (cipherAParams.getMacKeySize() != cipherBParams.getMacKeySize()) {
-            return false;
+        if (cipherAParams.macKeySize != cipherBParams.macKeySize) {
+            return false
         }
-        return true;
+        return true
     }
 
-    public static
-    boolean compare(IESWithCipherParameters cipherAParams, IESWithCipherParameters cipherBParams) {
-        if (cipherAParams.getCipherKeySize() != cipherBParams.getCipherKeySize()) {
-            return false;
+    fun compare(cipherAParams: IESWithCipherParameters, cipherBParams: IESWithCipherParameters): Boolean {
+        if (cipherAParams.cipherKeySize != cipherBParams.cipherKeySize) {
+            return false
         }
 
         // only need to cast one side.
-        return compare((IESParameters) cipherAParams, cipherBParams);
+        return compare(cipherAParams as IESParameters, cipherBParams)
     }
 
     /**
      * The message will have the (digestName) hash calculated and used for the signature.
-     * <p/>
+     * 
+     * 
      * The returned signature is the {r,s} signature array.
      */
-    public static
-    BigInteger[] generateSignature(String digestName, ECPrivateKeyParameters privateKey, SecureRandom secureRandom, byte[] bytes) {
+    fun generateSignature(
+        digestName: String,
+        privateKey: ECPrivateKeyParameters,
+        secureRandom: SecureRandom,
+        bytes: ByteArray
+    ): Array<BigInteger> {
+        val digest = DigestFactory.getDigest(digestName)
 
-        Digest digest = DigestFactory.getDigest(digestName);
+        val checksum = ByteArray(digest.digestSize)
 
-        byte[] checksum = new byte[digest.getDigestSize()];
+        digest.update(bytes, 0, bytes.size)
+        digest.doFinal(checksum, 0)
 
-        digest.update(bytes, 0, bytes.length);
-        digest.doFinal(checksum, 0);
-
-        return generateSignatureForHash(privateKey, secureRandom, checksum);
+        return generateSignatureForHash(privateKey, secureRandom, checksum)
     }
 
     /**
      * The message will use the bytes AS THE HASHED VALUE to calculate the signature.
-     * <p/>
+     * 
+     * 
      * The returned signature is the {r,s} signature array.
      */
-    public static
-    BigInteger[] generateSignatureForHash(ECPrivateKeyParameters privateKey, SecureRandom secureRandom, byte[] hashBytes) {
+    fun generateSignatureForHash(
+        privateKey: ECPrivateKeyParameters,
+        secureRandom: SecureRandom,
+        hashBytes: ByteArray
+    ): Array<BigInteger> {
+        val param = ParametersWithRandom(privateKey, secureRandom)
 
-        ParametersWithRandom param = new ParametersWithRandom(privateKey, secureRandom);
+        val ecdsa = ECDSASigner()
+        ecdsa.init(true, param)
 
-        ECDSASigner ecdsa = new ECDSASigner();
-        ecdsa.init(true, param);
-
-        return ecdsa.generateSignature(hashBytes);
+        return ecdsa.generateSignature(hashBytes)
     }
 
     /**
      * The message will have the (digestName) hash calculated and used for the signature.
-     *
+     * 
      * @param signature
-     *                 is the {r,s} signature array.
-     *
+     * is the {r,s} signature array.
+     * 
      * @return true if the signature is valid
      */
-    public static
-    boolean verifySignature(String digestName, ECPublicKeyParameters publicKey, byte[] message, BigInteger[] signature) {
+    fun verifySignature(digestName: String, publicKey: ECPublicKeyParameters, message: ByteArray, signature: Array<BigInteger>): Boolean {
+        val digest = DigestFactory.getDigest(digestName)
 
-        Digest digest = DigestFactory.getDigest(digestName);
+        val checksum = ByteArray(digest.digestSize)
 
-        byte[] checksum = new byte[digest.getDigestSize()];
+        digest.update(message, 0, message.size)
+        digest.doFinal(checksum, 0)
 
-        digest.update(message, 0, message.length);
-        digest.doFinal(checksum, 0);
-
-
-        return verifySignatureHash(publicKey, checksum, signature);
+        return verifySignatureHash(publicKey, checksum, signature)
     }
 
     /**
      * The provided hash will be used in the signature verification.
-     *
+     * 
      * @param signature
-     *                 is the {r,s} signature array.
-     *
+     * is the {r,s} signature array.
+     * 
      * @return true if the signature is valid
      */
-    public static
-    boolean verifySignatureHash(ECPublicKeyParameters publicKey, byte[] hash, BigInteger[] signature) {
+    fun verifySignatureHash(publicKey: ECPublicKeyParameters, hash: ByteArray?, signature: Array<BigInteger>): Boolean {
+        val ecdsa = ECDSASigner()
+        ecdsa.init(false, publicKey)
 
-        ECDSASigner ecdsa = new ECDSASigner();
-        ecdsa.init(false, publicKey);
-
-
-        return ecdsa.verifySignature(hash, signature[0], signature[1]);
-    }
-
-    private
-    CryptoECC() {
+        return ecdsa.verifySignature(hash, signature[0], signature[1])
     }
 }

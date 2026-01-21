@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,621 +13,606 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import org.bouncycastle.crypto.BufferedBlockCipher;
-import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.modes.GCMBlockCipher;
-import org.bouncycastle.crypto.params.KeyParameter;
-import org.bouncycastle.crypto.params.ParametersWithIV;
-import org.slf4j.Logger;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import org.bouncycastle.crypto.BufferedBlockCipher
+import org.bouncycastle.crypto.CipherParameters
+import org.bouncycastle.crypto.modes.GCMBlockCipher
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
+import org.slf4j.Logger
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * AES crypto functions
  */
-@SuppressWarnings({"Duplicates"})
-public final
-class CryptoAES {
+object CryptoAES {
     /**
      * Gets the version number.
      */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
+    const val version = Crypto.version
 
-    private static final int ivSize = 16;
+    private const val ivSize = 16
 
     /**
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] encryptWithIV(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
-        byte[] encryptAES = encrypt(aesEngine, aesKey, aesIV, data, logger);
+    fun encryptWithIV(aesEngine: GCMBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val encryptAES = encrypt(aesEngine, aesKey, aesIV, data, logger)
 
-        int length = encryptAES.length;
+        val length = encryptAES.size
 
-        byte[] out = new byte[length + ivSize];
-        System.arraycopy(aesIV, 0, out, 0, ivSize);
-        System.arraycopy(encryptAES, 0, out, ivSize, length);
+        val out = ByteArray(length + ivSize)
+        System.arraycopy(aesIV, 0, out, 0, ivSize)
+        System.arraycopy(encryptAES, 0, out, ivSize, length)
 
-        return out;
+        return out
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    @Deprecated
-    public static
-    byte[] encryptWithIV(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
+    @Deprecated("Use GCM instead")
+    fun encryptWithIV(aesEngine: BufferedBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val encryptAES = encrypt(aesEngine, aesKey, aesIV, data, logger)
 
-        byte[] encryptAES = encrypt(aesEngine, aesKey, aesIV, data, logger);
+        val length = encryptAES.size
 
-        int length = encryptAES.length;
+        val out = ByteArray(length + ivSize)
+        System.arraycopy(aesIV, 0, out, 0, ivSize)
+        System.arraycopy(encryptAES, 0, out, ivSize, length)
 
-        byte[] out = new byte[length + ivSize];
-        System.arraycopy(aesIV, 0, out, 0, ivSize);
-        System.arraycopy(encryptAES, 0, out, ivSize, length);
-
-        return out;
+        return out
     }
 
     /**
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    public static
-    boolean encryptStreamWithIV(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, InputStream in, OutputStream out, Logger logger) {
-
+    fun encryptStreamWithIV(
+        aesEngine: GCMBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
         try {
-            out.write(aesIV);
-        } catch (IOException e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(aesIV)
+        }
+        catch (e: IOException) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return encryptStream(aesEngine, aesKey, aesIV, in, out, logger);
+        return encryptStream(aesEngine, aesKey, aesIV, `in`, out, logger)
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    @Deprecated
-    public static
-    boolean encryptStreamWithIV(BufferedBlockCipher aesEngine,
-                                byte[] aesKey,
-                                byte[] aesIV,
-                                InputStream in,
-                                OutputStream out,
-                                Logger logger) {
-
+    @Deprecated("Use GCM instead")
+    fun encryptStreamWithIV(
+        aesEngine: BufferedBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger?
+    ): Boolean {
         try {
-            out.write(aesIV);
-        } catch (IOException e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(aesIV)
+        }
+        catch (e: IOException) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return encryptStream(aesEngine, aesKey, aesIV, in, out, logger);
+        return encryptStream(aesEngine, aesKey, aesIV, `in`, out, logger)
     }
 
     /**
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] encrypt(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
-        int length = data.length;
+    fun encrypt(aesEngine: GCMBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val length = data.size
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        return encrypt(aesEngine, aesIVAndKey, data, length, logger);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        return encrypt(aesEngine, aesIVAndKey, data, length, logger)
     }
 
     /**
      * AES encrypts data with a specified key.
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return length of encrypted data, -1 if there was an error.
      */
-    public static
-    byte[] encrypt(GCMBlockCipher aesEngine, CipherParameters aesIVAndKey, byte[] data, int length, Logger logger) {
+    fun encrypt(aesEngine: GCMBlockCipher, aesIVAndKey: CipherParameters?, data: ByteArray, length: Int, logger: Logger? = null): ByteArray {
+        aesEngine.reset()
+        aesEngine.init(true, aesIVAndKey)
 
-        aesEngine.reset();
-        aesEngine.init(true, aesIVAndKey);
+        val minSize = aesEngine.getOutputSize(length)
+        val outArray = ByteArray(minSize)
 
-        int minSize = aesEngine.getOutputSize(length);
-        byte[] outArray = new byte[minSize];
-
-        int actualLength = aesEngine.processBytes(data, 0, length, outArray, 0);
+        var actualLength = aesEngine.processBytes(data, 0, length, outArray, 0)
 
         try {
-            actualLength += aesEngine.doFinal(outArray, actualLength);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return new byte[0];
+            actualLength += aesEngine.doFinal(outArray, actualLength)
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return ByteArray(0)
         }
 
-        if (outArray.length == actualLength) {
-            return outArray;
+        if (outArray.size == actualLength) {
+            return outArray
         }
         else {
-            byte[] result = new byte[actualLength];
-            System.arraycopy(outArray, 0, result, 0, result.length);
-            return result;
+            val result = ByteArray(actualLength)
+            System.arraycopy(outArray, 0, result, 0, result.size)
+            return result
         }
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES encrypts data with a specified key.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    @Deprecated
-    public static
-    byte[] encrypt(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
-        int length = data.length;
+    @Deprecated("Use GCM instead")
+    fun encrypt(aesEngine: BufferedBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val length = data.size
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(true, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(true, aesIVAndKey)
 
-        int minSize = aesEngine.getOutputSize(length);
-        byte[] outBuf = new byte[minSize];
+        val minSize = aesEngine.getOutputSize(length)
+        val outBuf = ByteArray(minSize)
 
-        int actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0);
+        var actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0)
 
         try {
-            actualLength += aesEngine.doFinal(outBuf, actualLength);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return new byte[0];
+            actualLength += aesEngine.doFinal(outBuf, actualLength)
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return ByteArray(0)
         }
 
-        if (outBuf.length == actualLength) {
-            return outBuf;
+        if (outBuf.size == actualLength) {
+            return outBuf
         }
         else {
-            byte[] result = new byte[actualLength];
-            System.arraycopy(outBuf, 0, result, 0, result.length);
-            return result;
+            val result = ByteArray(actualLength)
+            System.arraycopy(outBuf, 0, result, 0, result.size)
+            return result
         }
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES encrypt from one stream to another.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    @Deprecated
-    public static
-    boolean encryptStream(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, InputStream in, OutputStream out, Logger logger) {
-        byte[] buf = new byte[ivSize];
-        byte[] outbuf = new byte[512];
+    @Deprecated("User GCM instead")
+    fun encryptStream(
+        aesEngine: BufferedBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
+        val buf = ByteArray(ivSize)
+        val outbuf = ByteArray(512)
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(true, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(true, aesIVAndKey)
 
         try {
-            int bytesRead;
-            int bytesProcessed;
+            var bytesRead: Int
+            var bytesProcessed: Int
 
-            while ((bytesRead = in.read(buf)) >= 0) {
-                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0);
-                out.write(outbuf, 0, bytesProcessed);
+            while ((`in`.read(buf).also { bytesRead = it }) >= 0) {
+                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0)
+                out.write(outbuf, 0, bytesProcessed)
             }
 
-            bytesProcessed = aesEngine.doFinal(outbuf, 0);
+            bytesProcessed = aesEngine.doFinal(outbuf, 0)
 
-            out.write(outbuf, 0, bytesProcessed);
-            out.flush();
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(outbuf, 0, bytesProcessed)
+            out.flush()
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return true;
+        return true
     }
 
     /**
      * AES encrypt from one stream to another.
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * @param aesIV must be a nonce (unique value) !!
+     * 
      * @return true if successful
      */
-    public static
-    boolean encryptStream(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, InputStream in, OutputStream out, Logger logger) {
+    fun encryptStream(
+        aesEngine: GCMBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
+        val buf = ByteArray(ivSize)
+        val outbuf = ByteArray(512)
 
-        byte[] buf = new byte[ivSize];
-        byte[] outbuf = new byte[512];
-
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(true, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(true, aesIVAndKey)
 
         try {
-            int bytesRead;
-            int bytesProcessed;
+            var bytesRead: Int
+            var bytesProcessed: Int
 
-            while ((bytesRead = in.read(buf)) >= 0) {
-                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0);
-                out.write(outbuf, 0, bytesProcessed);
+            while ((`in`.read(buf).also { bytesRead = it }) >= 0) {
+                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0)
+                out.write(outbuf, 0, bytesProcessed)
             }
 
-            bytesProcessed = aesEngine.doFinal(outbuf, 0);
+            bytesProcessed = aesEngine.doFinal(outbuf, 0)
 
-            out.write(outbuf, 0, bytesProcessed);
-            out.flush();
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(outbuf, 0, bytesProcessed)
+            out.flush()
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return true;
+        return true
     }
 
     /**
      * AES decrypt (if the aes IV is included in the data). IV must be a nonce (unique value) !!
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] decryptWithIV(GCMBlockCipher aesEngine, byte[] aesKey, byte[] data, Logger logger) {
-        byte[] aesIV = new byte[ivSize];
-        System.arraycopy(data, 0, aesIV, 0, ivSize);
+    fun decryptWithIV(aesEngine: GCMBlockCipher, aesKey: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val aesIV = ByteArray(ivSize)
+        System.arraycopy(data, 0, aesIV, 0, ivSize)
 
-        byte[] in = new byte[data.length - ivSize];
-        System.arraycopy(data, ivSize, in, 0, in.length);
+        val `in` = ByteArray(data.size - ivSize)
+        System.arraycopy(data, ivSize, `in`, 0, `in`.size)
 
-        return decrypt(aesEngine, aesKey, aesIV, in, logger);
+        return decrypt(aesEngine, aesKey, aesIV, `in`, logger)
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES decrypt (if the aes IV is included in the data). IV must be a nonce (unique value)
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    @Deprecated
-    public static
-    byte[] decryptWithIV(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] data, Logger logger) {
-        byte[] aesIV = new byte[ivSize];
-        System.arraycopy(data, 0, aesIV, 0, ivSize);
+    @Deprecated("Use GCM instead")
+    fun decryptWithIV(aesEngine: BufferedBlockCipher, aesKey: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val aesIV = ByteArray(ivSize)
+        System.arraycopy(data, 0, aesIV, 0, ivSize)
 
-        byte[] in = new byte[data.length - ivSize];
-        System.arraycopy(data, ivSize, in, 0, in.length);
+        val `in` = ByteArray(data.size - ivSize)
+        System.arraycopy(data, ivSize, `in`, 0, `in`.size)
 
-        return decrypt(aesEngine, aesKey, aesIV, in, logger);
+        return decrypt(aesEngine, aesKey, aesIV, `in`, logger)
     }
 
     /**
      * AES decrypt (if the aes IV is included in the data. IV must be a nonce (unique value)
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    public static
-    boolean decryptStreamWithIV(GCMBlockCipher aesEngine, byte[] aesKey, InputStream in, OutputStream out, Logger logger) {
-        byte[] aesIV = new byte[ivSize];
+    fun decryptStreamWithIV(aesEngine: GCMBlockCipher, aesKey: ByteArray, `in`: InputStream, out: OutputStream, logger: Logger? = null): Boolean {
+        val aesIV = ByteArray(ivSize)
         try {
-            in.read(aesIV, 0, ivSize);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            `in`.read(aesIV, 0, ivSize)
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return decryptStream(aesEngine, aesKey, aesIV, in, out, logger);
+        return decryptStream(aesEngine, aesKey, aesIV, `in`, out, logger)
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES decrypt (if the aes IV is included in the data). IV must be a nonce (unique value)
-     *
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    @Deprecated
-    public static
-    boolean decryptStreamWithIV(BufferedBlockCipher aesEngine, byte[] aesKey, InputStream in, OutputStream out, Logger logger) {
-        byte[] aesIV = new byte[ivSize];
+    @Deprecated("Use GCM instead")
+    fun decryptStreamWithIV(
+        aesEngine: BufferedBlockCipher,
+        aesKey: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
+        val aesIV = ByteArray(ivSize)
         try {
-            in.read(aesIV, 0, ivSize);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            `in`.read(aesIV, 0, ivSize)
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return decryptStream(aesEngine, aesKey, aesIV, in, out, logger);
+        return decryptStream(aesEngine, aesKey, aesIV, `in`, out, logger)
     }
 
     /**
      * AES decrypt (if we already know the aes IV -- and it's NOT included in the data)
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] decrypt(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
-        int length = data.length;
+    fun decrypt(aesEngine: GCMBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val length = data.size
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(false, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(false, aesIVAndKey)
 
-        int minSize = aesEngine.getOutputSize(length);
-        byte[] outBuf = new byte[minSize];
+        val minSize = aesEngine.getOutputSize(length)
+        val outBuf = ByteArray(minSize)
 
-        int actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0);
+        var actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0)
 
         try {
-            actualLength += aesEngine.doFinal(outBuf, actualLength);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.debug("Unable to perform AES cipher.", e);
-            }
-            return new byte[0];
+            actualLength += aesEngine.doFinal(outBuf, actualLength)
         }
-        if (outBuf.length == actualLength) {
-            return outBuf;
+        catch (e: Exception) {
+            logger?.debug("Unable to perform AES cipher.", e)
+            return ByteArray(0)
+        }
+        if (outBuf.size == actualLength) {
+            return outBuf
         }
         else {
-            byte[] result = new byte[actualLength];
-            System.arraycopy(outBuf, 0, result, 0, result.length);
-            return result;
+            val result = ByteArray(actualLength)
+            System.arraycopy(outBuf, 0, result, 0, result.size)
+            return result
         }
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES decrypt (if we already know the aes IV -- and it's NOT included in the data)
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV  must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    @Deprecated
-    public static
-    byte[] decrypt(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, byte[] data, Logger logger) {
+    @Deprecated("Use GCM instead")
+    fun decrypt(aesEngine: BufferedBlockCipher, aesKey: ByteArray, aesIV: ByteArray, data: ByteArray, logger: Logger? = null): ByteArray {
+        val length = data.size
 
-        int length = data.length;
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(false, aesIVAndKey)
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(false, aesIVAndKey);
+        val minSize = aesEngine.getOutputSize(length)
+        val outBuf = ByteArray(minSize)
 
-        int minSize = aesEngine.getOutputSize(length);
-        byte[] outBuf = new byte[minSize];
-
-        int actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0);
+        var actualLength = aesEngine.processBytes(data, 0, length, outBuf, 0)
 
         try {
-            actualLength += aesEngine.doFinal(outBuf, actualLength);
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return new byte[0];
+            actualLength += aesEngine.doFinal(outBuf, actualLength)
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return ByteArray(0)
         }
 
-        if (outBuf.length == actualLength) {
-            return outBuf;
+        if (outBuf.size == actualLength) {
+            return outBuf
         }
         else {
-            byte[] result = new byte[actualLength];
-            System.arraycopy(outBuf, 0, result, 0, result.length);
-            return result;
+            val result = ByteArray(actualLength)
+            System.arraycopy(outBuf, 0, result, 0, result.size)
+            return result
         }
     }
 
     /**
      * AES decrypt from one stream to another.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    public static
-    boolean decryptStream(GCMBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, InputStream in, OutputStream out, Logger logger) {
-        byte[] buf = new byte[ivSize];
-        byte[] outbuf = new byte[512];
+    fun decryptStream(
+        aesEngine: GCMBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
+        val buf = ByteArray(ivSize)
+        val outbuf = ByteArray(512)
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(false, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(false, aesIVAndKey)
 
         try {
-            int bytesRead;
-            int bytesProcessed;
+            var bytesRead: Int
+            var bytesProcessed: Int
 
-            while ((bytesRead = in.read(buf)) >= 0) {
-                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0);
-                out.write(outbuf, 0, bytesProcessed);
+            while ((`in`.read(buf).also { bytesRead = it }) >= 0) {
+                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0)
+                out.write(outbuf, 0, bytesProcessed)
             }
 
-            bytesProcessed = aesEngine.doFinal(outbuf, 0);
+            bytesProcessed = aesEngine.doFinal(outbuf, 0)
 
-            out.write(outbuf, 0, bytesProcessed);
-            out.flush();
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(outbuf, 0, bytesProcessed)
+            out.flush()
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return true;
+        return true
     }
 
     /**
-     * <b>CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO</b>
-     * <p>
+     * **CONVENIENCE METHOD ONLY - DO NOT USE UNLESS YOU HAVE TO**
+     * 
+     * 
      * Use GCM instead, as it's an authenticated cipher (and "regular" AES is not). This prevents tampering with the blocks of encrypted
      * data.
-     * <p>
+     * 
+     * 
      * AES decrypt from one stream to another.
-     *
-     * @param aesIV
-     *                 must be a nonce (unique value) !!
-     * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * 
+     * @param aesIV must be a nonce (unique value) !!
+     * @param logger may be null, if no log output is necessary
+     * 
      * @return true if successful
      */
-    @Deprecated
-    public static
-    boolean decryptStream(BufferedBlockCipher aesEngine, byte[] aesKey, byte[] aesIV, InputStream in, OutputStream out, Logger logger) {
-        byte[] buf = new byte[ivSize];
-        byte[] outbuf = new byte[512];
+    @Deprecated("Use GCM instead")
+    fun decryptStream(
+        aesEngine: BufferedBlockCipher,
+        aesKey: ByteArray,
+        aesIV: ByteArray,
+        `in`: InputStream,
+        out: OutputStream,
+        logger: Logger? = null
+    ): Boolean {
+        val buf = ByteArray(ivSize)
+        val outbuf = ByteArray(512)
 
-        CipherParameters aesIVAndKey = new ParametersWithIV(new KeyParameter(aesKey), aesIV);
-        aesEngine.reset();
-        aesEngine.init(false, aesIVAndKey);
+        val aesIVAndKey: CipherParameters = ParametersWithIV(KeyParameter(aesKey), aesIV)
+        aesEngine.reset()
+        aesEngine.init(false, aesIVAndKey)
 
         try {
-            int bytesRead;
-            int bytesProcessed;
+            var bytesRead: Int
+            var bytesProcessed: Int
 
-            while ((bytesRead = in.read(buf)) >= 0) {
-                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0);
-                out.write(outbuf, 0, bytesProcessed);
+            while ((`in`.read(buf).also { bytesRead = it }) >= 0) {
+                bytesProcessed = aesEngine.processBytes(buf, 0, bytesRead, outbuf, 0)
+                out.write(outbuf, 0, bytesProcessed)
             }
 
-            bytesProcessed = aesEngine.doFinal(outbuf, 0);
+            bytesProcessed = aesEngine.doFinal(outbuf, 0)
 
-            out.write(outbuf, 0, bytesProcessed);
-            out.flush();
-        } catch (Exception e) {
-            if (logger != null) {
-                logger.error("Unable to perform AES cipher.", e);
-            }
-            return false;
+            out.write(outbuf, 0, bytesProcessed)
+            out.flush()
+        }
+        catch (e: Exception) {
+            logger?.error("Unable to perform AES cipher.", e)
+            return false
         }
 
-        return true;
-    }
-
-    private
-    CryptoAES() {
+        return true
     }
 }

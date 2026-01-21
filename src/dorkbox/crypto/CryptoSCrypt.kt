@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,232 +13,166 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import java.security.SecureRandom;
-import java.util.Arrays;
-import java.util.Base64;
+import dorkbox.crypto.Crypto.charToBytesPassword_UTF16
+import org.bouncycastle.crypto.generators.SCrypt
+import java.security.SecureRandom
+import java.util.*
+import kotlin.math.pow
 
 /**
- * An implementation of the <a href="http://www.tarsnap.com/scrypt/scrypt.pdf"/>scrypt</a> key derivation function.
+ * An implementation of the [](http://www.tarsnap.com/scrypt/scrypt.pdf) scrypt key derivation function.
  */
-public final
-class CryptoSCrypt {
+object CryptoSCrypt {
     /**
      * Gets the version number.
      */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
+    const val version = Crypto.version
 
     /**
-     * Hash the supplied plaintext password and generate output using default parameters
-     * <p/>
+     * Hash the supplied plaintext password and generate output.
+     * 
+     * 
      * The password chars are no longer valid after this call
-     *
-     * @param password
-     *                 Password.
+     * 
+     * @param password Password.
+     * @param n CPU cost parameter.
+     * @param r Memory cost parameter.
+     * @param p Parallelization parameter.
+     * 
+     * @return The hashed password.
      */
-    public static
-    String encrypt(char[] password) {
-        return encrypt(password, 16384, 32, 1);
-    }
+    fun encrypt(password: CharArray, n: Int = 16384, r: Int = 32, p: Int = 1): String {
+        val secureRandom = SecureRandom()
+        val salt = ByteArray(32)
+        secureRandom.nextBytes(salt)
 
-    /**
-     * Hash the supplied plaintext password and generate output using default parameters
-     * <p/>
-     * The password chars are no longer valid after this call
-     *
-     * @param password
-     *                 Password.
-     * @param salt
-     *                 Salt parameter
-     */
-    public static
-    String encrypt(char[] password, byte[] salt) {
-        return encrypt(password, salt, 16384, 128, 1, 64);
+        return encrypt(password, salt, n, r, p, 64)
     }
 
     /**
      * Hash the supplied plaintext password and generate output.
-     * <p/>
+     * 
+     * 
      * The password chars are no longer valid after this call
-     *
-     * @param password
-     *                 Password.
-     * @param N
-     *                 CPU cost parameter.
-     * @param r
-     *                 Memory cost parameter.
-     * @param p
-     *                 Parallelization parameter.
-     *
+     * 
+     * @param password Password.
+     * @param salt Salt parameter
+     * @param n CPU cost parameter.
+     * @param r Memory cost parameter.
+     * @param p Parallelization parameter.
+     * @param dkLen Intended length of the derived key.
+     * 
      * @return The hashed password.
      */
-    public static
-    String encrypt(char[] password, int N, int r, int p) {
-        SecureRandom secureRandom = new SecureRandom();
-        byte[] salt = new byte[32];
-        secureRandom.nextBytes(salt);
-
-        return encrypt(password, salt, N, r, p, 64);
-    }
-
-    /**
-     * Hash the supplied plaintext password and generate output.
-     * <p/>
-     * The password chars are no longer valid after this call
-     *
-     * @param password
-     *                 Password.
-     * @param salt
-     *                 Salt parameter
-     * @param N
-     *                 CPU cost parameter.
-     * @param r
-     *                 Memory cost parameter.
-     * @param p
-     *                 Parallelization parameter.
-     * @param dkLen
-     *                 Intended length of the derived key.
-     *
-     * @return The hashed password.
-     */
-    public static
-    String encrypt(char[] password, byte[] salt, int N, int r, int p, int dkLen) {
+    fun encrypt(password: CharArray, salt: ByteArray, n: Int = 16384, r: Int = 128, p: Int = 1, dkLen: Int = 64): String {
         // Note: this saves the char array in UTF-16 format of bytes.
         // can't use password after this as it's been changed to '*'
-        byte[] passwordBytes = Crypto.charToBytesPassword_UTF16(password);
+        val passwordBytes = charToBytesPassword_UTF16(password)
 
-        byte[] derived = encrypt(passwordBytes, salt, N, r, p, dkLen);
+        val derived = encrypt(passwordBytes, salt, n, r, p, dkLen)
 
-        String params = Integer.toString(log2(N) << 16 | r << 8 | p, 16);
+        val params = (log2(n) shl 16 or (r shl 8) or p).toString(16)
 
-        @SuppressWarnings("StringBufferReplaceableByString")
-        StringBuilder sb = new StringBuilder((salt.length + derived.length) * 2);
-        sb.append("$s0$")
-          .append(params)
-          .append('$');
-        sb.append(Base64.getEncoder().encodeToString(salt))
-          .append('$');
-        sb.append(Base64.getEncoder().encodeToString(derived));
+        val sb = StringBuilder((salt.size + derived.size) * 2)
+        sb.append("\$s0$").append(params).append('$')
+        sb.append(Base64.getEncoder().encodeToString(salt)).append('$')
+        sb.append(Base64.getEncoder().encodeToString(derived))
 
-        return sb.toString();
+        return sb.toString()
     }
 
     /**
      * Compare the supplied plaintext password to a hashed password.
-     *
-     * @param password
-     *                 Plaintext password.
-     * @param hashed
-     *                 scrypt hashed password.
-     *
+     * 
+     * @param password Plaintext password.
+     * @param hashed scrypt hashed password.
+     * 
      * @return true if password matches hashed value.
      */
-    public static
-    boolean verify(char[] password, String hashed) {
+    fun verify(password: CharArray, hashed: String): Boolean {
         // Note: this saves the char array in UTF-16 format of bytes.
         // can't use password after this as it's been changed to '*'
-        byte[] passwordBytes = Crypto.charToBytesPassword_UTF16(password);
+        val passwordBytes = charToBytesPassword_UTF16(password)
 
-        String[] parts = hashed.split("\\$");
+        val parts: Array<String?> = hashed.split("\\$".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
 
-        if (parts.length != 5 || !parts[1].equals("s0")) {
-            throw new IllegalArgumentException("Invalid hashed value");
-        }
+        require(!(parts.size != 5 || parts[1] != "s0")) { "Invalid hashed value" }
 
-        int params = Integer.parseInt(parts[2], 16);
-        byte[] salt = Base64.getDecoder().decode(parts[3]);
-        byte[] derived0 = Base64.getDecoder().decode(parts[4]);
+        val params = parts[2]!!.toInt(16)
+        val salt = Base64.getDecoder().decode(parts[3])
+        val derived0 = Base64.getDecoder().decode(parts[4])
 
-        //noinspection NumericCastThatLosesPrecision
-        int N = (int) Math.pow(2, params >> 16 & 0xFF);
-        int r = params >> 8 & 0xFF;
-        int p = params & 0xFF;
+        val n = 2.0.pow((params shr 16 and 0xFF).toDouble()).toInt()
+        val r = params shr 8 and 0xFF
+        val p = params and 0xFF
 
-        int length = derived0.length;
+        val length = derived0.size
         if (length == 0) {
-            return false;
+            return false
         }
 
-        byte[] derived1 = encrypt(passwordBytes, salt, N, r, p, length);
+        val derived1 = encrypt(passwordBytes, salt, n, r, p, length)
 
-        if (length != derived1.length) {
-            return false;
+        if (length != derived1.size) {
+            return false
         }
 
-        int result = 0;
-        for (int i = 0; i < length; i++) {
-            result |= derived0[i] ^ derived1[i];
+        var result = 0
+        for (i in 0..<length) {
+            result = result or (derived0[i].toInt() xor derived1[i].toInt())
         }
 
-        return result == 0;
+        return result == 0
     }
 
-    private static
-    int log2(int n) {
-        int log = 0;
-        if ((n & 0xFFFF0000) != 0) {
-            n >>>= 16;
-            log = 16;
+    private fun log2(n: Int): Int {
+        var n = n
+        var log = 0
+        if ((n and -0x10000) != 0) {
+            n = n ushr 16
+            log = 16
         }
         if (n >= 256) {
-            n >>>= 8;
-            log += 8;
+            n = n ushr 8
+            log += 8
         }
         if (n >= 16) {
-            n >>>= 4;
-            log += 4;
+            n = n ushr 4
+            log += 4
         }
         if (n >= 4) {
-            n >>>= 2;
-            log += 2;
+            n = n ushr 2
+            log += 2
         }
-        return log + (n >>> 1);
+        return log + (n ushr 1)
     }
 
     /**
-     * Pure Java implementation of the <a href="http://www.tarsnap.com/scrypt/scrypt.pdf"/>scrypt KDF</a>.
-     *
-     * @param password
-     *                 Password.
-     * @param salt
-     *                 Salt.
-     * @param N
-     *                 CPU cost parameter.
-     * @param r
-     *                 Memory cost parameter.
-     * @param p
-     *                 Parallelization parameter.
-     * @param dkLen
-     *                 Intended length of the derived key.
-     *
+     * Pure Java implementation of the [](http://www.tarsnap.com/scrypt/scrypt.pdf)scrypt KDF.
+     * 
+     * @param password Password.
+     * @param salt Salt.
+     * @param n CPU cost parameter.
+     * @param r Memory cost parameter.
+     * @param p  Parallelization parameter.
+     * @param dkLen Intended length of the derived key.
+     * 
      * @return The derived key.
      */
-    public static
-    byte[] encrypt(byte[] password, byte[] salt, int N, int r, int p, int dkLen) {
-        if (N == 0 || (N & N - 1) != 0) {
-            throw new IllegalArgumentException("N must be > 0 and a power of 2");
-        }
+    fun encrypt(password: ByteArray, salt: ByteArray, n: Int, r: Int, p: Int, dkLen: Int): ByteArray {
+        require(!(n == 0 || (n and n - 1) != 0)) { "n must be > 0 and a power of 2" }
 
-        if (N > Integer.MAX_VALUE / 128 / r) {
-            throw new IllegalArgumentException("Parameter N is too large");
-        }
-        if (r > Integer.MAX_VALUE / 128 / p) {
-            throw new IllegalArgumentException("Parameter r is too large");
-        }
+        require(n <= Int.MAX_VALUE / 128 / r) { "Parameter n is too large" }
+        require(r <= Int.MAX_VALUE / 128 / p) { "Parameter r is too large" }
 
         try {
-            return org.bouncycastle.crypto.generators.SCrypt.generate(password, salt, N, r, p, dkLen);
-        } finally {
-            // now zero out the bytes in password.
-            Arrays.fill(password, (byte) 0);
+            return SCrypt.generate(password, salt, n, r, p, dkLen)
         }
-    }
-
-    private
-    CryptoSCrypt() {
+        finally {
+            // now zero out the bytes in password.
+            Arrays.fill(password, 0.toByte())
+        }
     }
 }

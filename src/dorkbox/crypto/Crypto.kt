@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import java.security.NoSuchAlgorithmException
 import java.security.Security
@@ -59,11 +58,10 @@ import javax.crypto.Cipher
  *
  */
 object Crypto {
-
     /**
      * Gets the version number.
      */
-    val version = "1.2"
+    const val version = "1.2"
 
     init {
         // Add this project to the updates system, which verifies this class + UUID + version information
@@ -74,8 +72,7 @@ object Crypto {
     // check to see if our extra data is OURS. if so, process it
     // cafeʞ, as UN signed bytes is: [254, 202, 202, 158], or as hex: FECA CA9E
     // cafeʞ, as signed bytes is: [-2, -54, -54, -98]
-    private val CUSTOM_HEADER =
-        byteArrayOf((-2.toByte()).toByte(), (-54.toByte()).toByte(), (-54.toByte()).toByte(), (-98.toByte()).toByte())
+    private val CUSTOM_HEADER = byteArrayOf((-2).toByte(), (-54).toByte(), (-54).toByte(), (-98).toByte())
 
     fun addProvider() {
         // make sure we only add it once (in case it's added elsewhere...)
@@ -139,7 +136,7 @@ object Crypto {
      * Specifically, to return the hash of the ALL files/directories inside the jar, minus the action specified (LGPL) files.
      */
     @Throws(IOException::class)
-    fun hashJarContentsExcludeAction(jarDestFilename: File?, digest: Digest, action: Int): ByteArray {
+    fun hashJarContentsExcludeAction(jarDestFilename: File?, digest: Digest, action: Int): ByteArray? {
         val jarDestFile = JarFile(jarDestFilename)
         try {
             val jarElements = jarDestFile.entries()
@@ -183,7 +180,7 @@ object Crypto {
                         okToHash = true
                     }
                 } else {
-                    throw RuntimeException("Unexpected extra data in zip assigned. Aborting")
+                    return null
                 }
 
                 // skips hashing lgpl files. (technically, whatever our action bitmask is...)
@@ -210,10 +207,12 @@ object Crypto {
                 //}
             }
         } catch (e: Exception) {
-            throw RuntimeException("Unexpected extra data in zip assigned. Aborting")
+            e.printStackTrace()
+            return null
         } finally {
             jarDestFile.close()
         }
+
         val digestBytes = ByteArray(digest.digestSize)
         digest.doFinal(digestBytes, 0)
         return digestBytes
@@ -231,7 +230,7 @@ object Crypto {
      *
      * @return the secure key to use
      */
-    fun PBKDF2(password: CharArray, salt: ByteArray?, iterationCount: Int): ByteArray {
+    fun PBKDF2(password: CharArray, salt: ByteArray, iterationCount: Int): ByteArray {
         // will also zero out the password.
         val charToBytes = charToBytesPassword_UTF16(password)
         return PBKDF2(charToBytes, salt, iterationCount)
@@ -240,16 +239,13 @@ object Crypto {
     /**
      * Secure way to generate an AES key based on a password.
      *
-     * @param password
-     * The password that you want to mix
-     * @param salt
-     * should be a RANDOM number, at least 256bits (32 bytes) in size.
-     * @param iterationCount
-     * should be a lot, like 10,000
+     * @param password The password that you want to mix
+     * @param salt should be a RANDOM number, at least 256bits (32 bytes) in size.
+     * @param iterationCount should be a lot, like 10,000
      *
      * @return the secure key to use
      */
-    fun PBKDF2(password: ByteArray?, salt: ByteArray?, iterationCount: Int): ByteArray {
+    fun PBKDF2(password: ByteArray, salt: ByteArray, iterationCount: Int): ByteArray {
         val digest = SHA256Digest()
         val pGen: PBEParametersGenerator = PKCS5S2ParametersGenerator(digest)
         pGen.init(password, salt, iterationCount)
@@ -263,7 +259,6 @@ object Crypto {
     /**
      * this saves the char array in UTF-16 format of bytes and BLANKS out the password char array.
      */
-    @JvmStatic
     fun charToBytesPassword_UTF16(password: CharArray): ByteArray {
         // note: this saves the char array in UTF-16 format of bytes.
         val passwordBytes = ByteArray(password.size * 2)

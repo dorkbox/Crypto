@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,108 +13,100 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.digests.SHA1Digest;
-import org.bouncycastle.crypto.generators.DSAKeyPairGenerator;
-import org.bouncycastle.crypto.generators.DSAParametersGenerator;
-import org.bouncycastle.crypto.params.DSAKeyGenerationParameters;
-import org.bouncycastle.crypto.params.DSAParameters;
-import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.params.ParametersWithRandom;
-import org.bouncycastle.crypto.signers.DSASigner;
-
-import java.math.BigInteger;
-import java.security.SecureRandom;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.SHA1Digest
+import org.bouncycastle.crypto.generators.DSAKeyPairGenerator
+import org.bouncycastle.crypto.generators.DSAParametersGenerator
+import org.bouncycastle.crypto.params.DSAKeyGenerationParameters
+import org.bouncycastle.crypto.params.DSAPrivateKeyParameters
+import org.bouncycastle.crypto.params.DSAPublicKeyParameters
+import org.bouncycastle.crypto.params.ParametersWithRandom
+import org.bouncycastle.crypto.signers.DSASigner
+import java.math.BigInteger
+import java.security.SecureRandom
 
 /**
  * this is here just for keeping track of how this is done. This should correct and working, but should NOT be used, and instead use ECC
  * crypto.
  */
- @Deprecated
-public final
-class CryptoDSA {
+object CryptoDSA {
     /**
      * Gets the version number.
      */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
+    const val version = Crypto.version
 
     /**
      * Generates the DSA key (using RSA and SHA1)
-     * <p/>
+     * 
+     * 
      * Note: this is here just for keeping track of how this is done. This should NOT be used, and instead use ECC crypto.
      */
-    public static
-    AsymmetricCipherKeyPair generateKeyPair(SecureRandom secureRandom, int keyLength) {
-        DSAKeyPairGenerator keyGen = new DSAKeyPairGenerator();
+    @Deprecated("Never use DSA, it is VERY insecure!")
+    fun generateKeyPair(secureRandom: SecureRandom, keyLength: Int): AsymmetricCipherKeyPair {
+        val keyGen = DSAKeyPairGenerator()
 
-        DSAParametersGenerator dsaParametersGenerator = new DSAParametersGenerator();
-        dsaParametersGenerator.init(keyLength, 20, secureRandom);
-        DSAParameters generateParameters = dsaParametersGenerator.generateParameters();
+        val dsaParametersGenerator = DSAParametersGenerator()
+        dsaParametersGenerator.init(keyLength, 20, secureRandom)
+        val generateParameters = dsaParametersGenerator.generateParameters()
 
-        DSAKeyGenerationParameters params = new DSAKeyGenerationParameters(secureRandom, generateParameters);
-        keyGen.init(params);
-        return keyGen.generateKeyPair();
+        val params = DSAKeyGenerationParameters(secureRandom, generateParameters)
+        keyGen.init(params)
+        return keyGen.generateKeyPair()
     }
 
     /**
      * The message will have the SHA1 hash calculated and used for the signature.
-     * <p/>
+     * 
+     * 
      * Note: this is here just for keeping track of how this is done. This should NOT be used, and instead use ECC crypto.
-     * <p/>
+     * 
+     * 
      * The returned signature is the {r,s} signature array.
      */
-    public static
-    BigInteger[] generateSignature(DSAPrivateKeyParameters privateKey, SecureRandom secureRandom, byte[] message) {
-        ParametersWithRandom param = new ParametersWithRandom(privateKey, secureRandom);
+    @Deprecated("Never use DSA, it is VERY insecure!")
+    fun generateSignature(privateKey: DSAPrivateKeyParameters, secureRandom: SecureRandom, message: ByteArray): Array<BigInteger> {
+        val param = ParametersWithRandom(privateKey, secureRandom)
 
-        DSASigner dsa = new DSASigner();
+        val dsa = DSASigner()
 
-        dsa.init(true, param);
+        dsa.init(true, param)
 
 
-        SHA1Digest sha1Digest = new SHA1Digest();
-        byte[] checksum = new byte[sha1Digest.getDigestSize()];
+        val sha1Digest = SHA1Digest()
+        val checksum = ByteArray(sha1Digest.digestSize)
 
-        sha1Digest.update(message, 0, message.length);
-        sha1Digest.doFinal(checksum, 0);
+        sha1Digest.update(message, 0, message.size)
+        sha1Digest.doFinal(checksum, 0)
 
-        return dsa.generateSignature(checksum);
+        return dsa.generateSignature(checksum)
     }
 
     /**
      * The message will have the SHA1 hash calculated and used for the signature.
-     * <p/>
+     * 
+     * 
      * Note: this is here just for keeping track of how this is done. This should NOT be used, and instead use ECC crypto.
-     *
+     * 
      * @param signature
-     *                 is the {r,s} signature array.
-     *
+     * is the {r,s} signature array.
+     * 
      * @return true if the signature is valid
      */
-    public static
-    boolean verifySignature(DSAPublicKeyParameters publicKey, byte[] message, BigInteger[] signature) {
-        SHA1Digest sha1Digest = new SHA1Digest();
-        byte[] checksum = new byte[sha1Digest.getDigestSize()];
+    @Deprecated("Never use DSA, it is VERY insecure!")
+    fun verifySignature(publicKey: DSAPublicKeyParameters, message: ByteArray, signature: Array<BigInteger>): Boolean {
+        val sha1Digest = SHA1Digest()
+        val checksum = ByteArray(sha1Digest.digestSize)
 
-        sha1Digest.update(message, 0, message.length);
-        sha1Digest.doFinal(checksum, 0);
-
-
-        DSASigner dsa = new DSASigner();
-
-        dsa.init(false, publicKey);
-
-        return dsa.verifySignature(checksum, signature[0], signature[1]);
-    }
+        sha1Digest.update(message, 0, message.size)
+        sha1Digest.doFinal(checksum, 0)
 
 
-    private
-    CryptoDSA() {
+        val dsa = DSASigner()
+
+        dsa.init(false, publicKey)
+
+        return dsa.verifySignature(checksum, signature[0], signature[1])
     }
 }

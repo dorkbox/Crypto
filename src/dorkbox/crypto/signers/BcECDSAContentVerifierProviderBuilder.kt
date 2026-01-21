@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,53 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto.signers;
+package dorkbox.crypto.signers
 
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.Signer;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.signers.DSADigestSigner;
-import org.bouncycastle.crypto.signers.ECDSASigner;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-import org.bouncycastle.jcajce.provider.util.DigestFactory;
-import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.bc.BcContentVerifierProviderBuilder;
+import dorkbox.crypto.Crypto
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
+import org.bouncycastle.crypto.Signer
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter
+import org.bouncycastle.crypto.signers.DSADigestSigner
+import org.bouncycastle.crypto.signers.ECDSASigner
+import org.bouncycastle.crypto.util.PublicKeyFactory
+import org.bouncycastle.jcajce.provider.util.DigestFactory
+import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder
+import org.bouncycastle.operator.DigestAlgorithmIdentifierFinder
+import org.bouncycastle.operator.OperatorCreationException
+import org.bouncycastle.operator.bc.BcContentVerifierProviderBuilder
+import java.io.IOException
 
-import java.io.IOException;
-
-import dorkbox.crypto.Crypto;
-
-public
-class BcECDSAContentVerifierProviderBuilder extends BcContentVerifierProviderBuilder {
-    /**
-     * Gets the version number.
-     */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
+class BcECDSAContentVerifierProviderBuilder : BcContentVerifierProviderBuilder {
+    companion object {
+        /**
+         * Gets the version number.
+         */
+        const val version = Crypto.version
     }
 
-    public
-    BcECDSAContentVerifierProviderBuilder(DigestAlgorithmIdentifierFinder digestAlgorithmFinder) {
+    constructor(digestAlgorithmFinder: DigestAlgorithmIdentifierFinder) : super()
+
+    @Throws(IOException::class)
+    override fun extractKeyParameters(publicKeyInfo: SubjectPublicKeyInfo): AsymmetricKeyParameter? {
+        return PublicKeyFactory.createKey(publicKeyInfo)
     }
 
-    @Override
-    protected
-    AsymmetricKeyParameter extractKeyParameters(SubjectPublicKeyInfo publicKeyInfo) throws IOException {
-        return PublicKeyFactory.createKey(publicKeyInfo);
-    }
+    @Throws(OperatorCreationException::class)
+    override fun createSigner(sigAlgId: AlgorithmIdentifier?): Signer {
+        val digAlgId = DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId)
 
-    @Override
-    protected
-    Signer createSigner(AlgorithmIdentifier sigAlgId) throws OperatorCreationException {
-        AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
-
-        Digest digest = DigestFactory.getDigest(digAlgId.getAlgorithm()
-                                                        .getId()); // 1.2.23.4.5.6, etc
-        return new DSADigestSigner(new ECDSASigner(), digest);
+        val digest = DigestFactory.getDigest(digAlgId.algorithm.id) // 1.2.23.4.5.6, etc
+        return DSADigestSigner(ECDSASigner(), digest)
     }
 }

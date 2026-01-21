@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,40 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto.signers;
+package dorkbox.crypto.signers
 
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.Signer;
-import org.bouncycastle.crypto.signers.DSADigestSigner;
-import org.bouncycastle.crypto.signers.ECDSASigner;
-import org.bouncycastle.jcajce.provider.util.DigestFactory;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.bc.BcContentSignerBuilder;
+import dorkbox.crypto.Crypto
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier
+import org.bouncycastle.crypto.Signer
+import org.bouncycastle.crypto.signers.DSADigestSigner
+import org.bouncycastle.crypto.signers.ECDSASigner
+import org.bouncycastle.jcajce.provider.util.DigestFactory
+import org.bouncycastle.operator.OperatorCreationException
+import org.bouncycastle.operator.bc.BcContentSignerBuilder
 
-import dorkbox.crypto.Crypto;
-
-public
-class BcECDSAContentSignerBuilder extends BcContentSignerBuilder {
-    /**
-     * Gets the version number.
-     */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
+class BcECDSAContentSignerBuilder : BcContentSignerBuilder {
+    companion object {
+        /**
+         * Gets the version number.
+         */
+        const val version = Crypto.version
     }
 
-    public
-    BcECDSAContentSignerBuilder(AlgorithmIdentifier sigAlgId, AlgorithmIdentifier digAlgId) {
-        super(sigAlgId, digAlgId);
-    }
+    constructor(sigAlgId: AlgorithmIdentifier?, digAlgId: AlgorithmIdentifier?) : super(sigAlgId, digAlgId)
 
-    @Override
-    protected
-    Signer createSigner(AlgorithmIdentifier sigAlgId, AlgorithmIdentifier digAlgId) throws OperatorCreationException {
-        Digest digest = DigestFactory.getDigest(digAlgId.getAlgorithm()
-                                                        .getId()); // SHA1, SHA512, etc
-
-        return new DSADigestSigner(new ECDSASigner(), digest);
+    @Throws(OperatorCreationException::class)
+    override fun createSigner(sigAlgId: AlgorithmIdentifier?, digAlgId: AlgorithmIdentifier): Signer {
+        val digest = DigestFactory.getDigest(digAlgId.algorithm.id) // SHA1, SHA512, etc
+        return DSADigestSigner(ECDSASigner(), digest)
     }
 }

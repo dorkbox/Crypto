@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,305 +13,286 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import org.bouncycastle.crypto.AsymmetricBlockCipher;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
-import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.bouncycastle.crypto.signers.PSSSigner;
-import org.slf4j.Logger;
-
-import java.io.ByteArrayOutputStream;
-import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.security.SecureRandom;
+import org.bouncycastle.crypto.AsymmetricBlockCipher
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.Digest
+import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
+import org.bouncycastle.crypto.params.RSAKeyGenerationParameters
+import org.bouncycastle.crypto.params.RSAKeyParameters
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
+import org.bouncycastle.crypto.signers.PSSSigner
+import org.slf4j.Logger
+import java.io.ByteArrayOutputStream
+import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.security.SecureRandom
+import kotlin.math.min
 
 /**
  * This is here just for keeping track of how this is done. This should NOT be used, and instead use ECC crypto.
  */
- @Deprecated
-public final
-class CryptoRSA {
+@Deprecated("")
+object CryptoRSA {
     /**
      * Gets the version number.
      */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
+    const val version = Crypto.version
 
-    public static
-    AsymmetricCipherKeyPair generateKeyPair(SecureRandom secureRandom, int keyLength) {
-        RSAKeyPairGenerator keyGen = new RSAKeyPairGenerator();
-        RSAKeyGenerationParameters params = new RSAKeyGenerationParameters(new BigInteger("65537"), // public exponent
-                                                                           secureRandom, //pnrg
-                                                                           keyLength, // key length
-                                                                           8);  //the number of iterations of the Miller-Rabin primality test.
-        keyGen.init(params);
-        return keyGen.generateKeyPair();
+    fun generateKeyPair(secureRandom: SecureRandom, keyLength: Int): AsymmetricCipherKeyPair {
+        val keyGen = RSAKeyPairGenerator()
+        val params = RSAKeyGenerationParameters(
+            BigInteger("65537"),  // public exponent
+            secureRandom,  //pnrg
+            keyLength,  // key length
+            8
+        ) //the number of iterations of the Miller-Rabin primality test.
+        keyGen.init(params)
+        return keyGen.generateKeyPair()
     }
 
     /**
      * RSA encrypt using public key A, and sign data with private key B.
-     * <p/>
+     * 
+     * 
      * byte[0][] = encrypted data byte[1][] = signature
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[][] if error
      */
-    public static
-    byte[][] encryptAndSign(AsymmetricBlockCipher rsaEngine,
-                            Digest digest,
-                            RSAKeyParameters rsaPublicKeyA,
-                            RSAPrivateCrtKeyParameters rsaPrivateKeyB,
-                            byte[] bytes,
-                            Logger logger) {
-        if (bytes.length == 0) {
-            return new byte[0][0];
+    fun encryptAndSign(
+        rsaEngine: AsymmetricBlockCipher,
+        digest: Digest,
+        rsaPublicKeyA: RSAKeyParameters?,
+        rsaPrivateKeyB: RSAPrivateCrtKeyParameters?,
+        bytes: ByteArray,
+        logger: Logger?
+    ): Array<ByteArray?> {
+        if (bytes.size == 0) {
+            return Array<ByteArray?>(0) { ByteArray(0) }
         }
 
-        byte[] encryptBytes = encrypt(rsaEngine, rsaPublicKeyA, bytes, logger);
+        val encryptBytes = encrypt(rsaEngine, rsaPublicKeyA, bytes, logger)
 
-        if (encryptBytes.length == 0) {
-            return new byte[0][0];
+        if (encryptBytes.size == 0) {
+            return Array<ByteArray?>(0) { ByteArray(0) }
         }
 
         // now sign it.
-        PSSSigner signer = new PSSSigner(rsaEngine, digest, digest.getDigestSize());
+        val signer = PSSSigner(rsaEngine, digest, digest.getDigestSize())
 
-        byte[] signatureRSA = CryptoRSA.sign(signer, rsaPrivateKeyB, encryptBytes, logger);
+        val signatureRSA = sign(signer, rsaPrivateKeyB, encryptBytes, logger)
 
-        if (signatureRSA.length == 0) {
-            return new byte[0][0];
+        if (signatureRSA.size == 0) {
+            return Array<ByteArray?>(0) { ByteArray(0) }
         }
 
-        byte[][] total = new byte[2][];
-        total[0] = encryptBytes;
-        total[1] = signatureRSA;
+        val total = arrayOfNulls<ByteArray>(2)
+        total[0] = encryptBytes
+        total[1] = signatureRSA
 
 
-        return total;
+        return total
     }
 
     /**
      * RSA verify data with public key B, and decrypt using private key A.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] decryptAndVerify(AsymmetricBlockCipher rsaEngine,
-                            Digest digest,
-                            RSAKeyParameters rsaPublicKeyA,
-                            RSAPrivateCrtKeyParameters rsaPrivateKeyB,
-                            byte[] encryptedData,
-                            byte[] signature,
-                            Logger logger) {
-        if (encryptedData.length == 0 || signature.length == 0) {
-            return new byte[0];
+    fun decryptAndVerify(
+        rsaEngine: AsymmetricBlockCipher,
+        digest: Digest,
+        rsaPublicKeyA: RSAKeyParameters?,
+        rsaPrivateKeyB: RSAPrivateCrtKeyParameters?,
+        encryptedData: ByteArray,
+        signature: ByteArray,
+        logger: Logger?
+    ): ByteArray? {
+        if (encryptedData.size == 0 || signature.size == 0) {
+            return ByteArray(0)
         }
 
         // verify encrypted data.
-        PSSSigner signer = new PSSSigner(rsaEngine, digest, digest.getDigestSize());
+        val signer = PSSSigner(rsaEngine, digest, digest.getDigestSize())
 
-        boolean verify = verify(signer, rsaPublicKeyA, signature, encryptedData);
+        val verify = verify(signer, rsaPublicKeyA, signature, encryptedData)
         if (!verify) {
-            return new byte[0];
+            return ByteArray(0)
         }
 
-        return decrypt(rsaEngine, rsaPrivateKeyB, encryptedData, logger);
-
+        return decrypt(rsaEngine, rsaPrivateKeyB, encryptedData, logger)
     }
 
     /**
      * RSA encrypts data with a specified key.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] encrypt(AsymmetricBlockCipher rsaEngine, RSAKeyParameters rsaPublicKey, byte[] bytes, Logger logger) {
-        rsaEngine.init(true, rsaPublicKey);
+    fun encrypt(rsaEngine: AsymmetricBlockCipher, rsaPublicKey: RSAKeyParameters?, bytes: ByteArray, logger: Logger?): ByteArray {
+        rsaEngine.init(true, rsaPublicKey)
 
         try {
-            int inputBlockSize = rsaEngine.getInputBlockSize();
-            if (inputBlockSize < bytes.length) {
-                int outSize = rsaEngine.getOutputBlockSize();
-                //noinspection NumericCastThatLosesPrecision
-                int realsize = (int) Math.round(bytes.length / (outSize * 1.0D) + 0.5);
-                ByteBuffer buffer = ByteBuffer.allocateDirect(outSize * realsize);
+            val inputBlockSize = rsaEngine.getInputBlockSize()
+            if (inputBlockSize < bytes.size) {
+                val outSize = rsaEngine.getOutputBlockSize()
+                val realsize = Math.round(bytes.size / (outSize * 1.0) + 0.5).toInt()
+                val buffer = ByteBuffer.allocateDirect(outSize * realsize)
 
-                int position = 0;
+                var position = 0
 
-                while (position < bytes.length) {
-                    int size = Math.min(inputBlockSize, bytes.length - position);
+                while (position < bytes.size) {
+                    val size = min(inputBlockSize, bytes.size - position)
 
-                    byte[] block = rsaEngine.processBlock(bytes, position, size);
-                    buffer.put(block, 0, block.length);
+                    val block = rsaEngine.processBlock(bytes, position, size)
+                    buffer.put(block, 0, block.size)
 
-                    position += size;
+                    position += size
                 }
 
 
-                return buffer.array();
-
+                return buffer.array()
             }
             else {
-                return rsaEngine.processBlock(bytes, 0, bytes.length);
+                return rsaEngine.processBlock(bytes, 0, bytes.size)
             }
-        } catch (Exception e) {
+        }
+        catch (e: Exception) {
             if (logger != null) {
-                logger.error("Unable to perform RSA cipher.", e);
+                logger.error("Unable to perform RSA cipher.", e)
             }
-            return new byte[0];
+            return ByteArray(0)
         }
     }
 
     /**
      * RSA decrypt data with a specified key.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] decrypt(AsymmetricBlockCipher rsaEngine, RSAPrivateCrtKeyParameters rsaPrivateKey, byte[] bytes, Logger logger) {
-        rsaEngine.init(false, rsaPrivateKey);
+    fun decrypt(
+        rsaEngine: AsymmetricBlockCipher,
+        rsaPrivateKey: RSAPrivateCrtKeyParameters?,
+        bytes: ByteArray,
+        logger: Logger?
+    ): ByteArray? {
+        rsaEngine.init(false, rsaPrivateKey)
 
         try {
-            int inputBlockSize = rsaEngine.getInputBlockSize();
-            if (inputBlockSize < bytes.length) {
-                int outSize = rsaEngine.getOutputBlockSize();
-                //noinspection NumericCastThatLosesPrecision
-                int realsize = (int) Math.round(bytes.length / (outSize * 1.0D) + 0.5);
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream(outSize * realsize);
+            val inputBlockSize = rsaEngine.getInputBlockSize()
+            if (inputBlockSize < bytes.size) {
+                val outSize = rsaEngine.getOutputBlockSize()
+                val realsize = Math.round(bytes.size / (outSize * 1.0) + 0.5).toInt()
+                val buffer = ByteArrayOutputStream(outSize * realsize)
 
-                int position = 0;
+                var position = 0
 
-                while (position < bytes.length) {
-                    int size = Math.min(inputBlockSize, bytes.length - position);
+                while (position < bytes.size) {
+                    val size = min(inputBlockSize, bytes.size - position)
 
-                    byte[] block = rsaEngine.processBlock(bytes, position, size);
-                    buffer.write(block, 0, block.length);
+                    val block = rsaEngine.processBlock(bytes, position, size)
+                    buffer.write(block, 0, block.size)
 
-                    position += size;
+                    position += size
                 }
 
 
-                return buffer.toByteArray();
+                return buffer.toByteArray()
             }
             else {
-                return rsaEngine.processBlock(bytes, 0, bytes.length);
+                return rsaEngine.processBlock(bytes, 0, bytes.size)
             }
-        } catch (Exception e) {
+        }
+        catch (e: Exception) {
             if (logger != null) {
-                logger.error("Unable to perform RSA cipher.", e);
+                logger.error("Unable to perform RSA cipher.", e)
             }
-            return new byte[0];
+            return ByteArray(0)
         }
     }
 
     /**
      * RSA sign data with a specified key.
-     *
+     * 
      * @param logger
-     *                 may be null, if no log output is necessary
-     *
+     * may be null, if no log output is necessary
+     * 
      * @return empty byte[] if error
      */
-    public static
-    byte[] sign(PSSSigner signer, RSAPrivateCrtKeyParameters rsaPrivateKey, byte[] mesg, Logger logger) {
-        signer.init(true, rsaPrivateKey);
-        signer.update(mesg, 0, mesg.length);
+    fun sign(signer: PSSSigner, rsaPrivateKey: RSAPrivateCrtKeyParameters?, mesg: ByteArray, logger: Logger?): ByteArray {
+        signer.init(true, rsaPrivateKey)
+        signer.update(mesg, 0, mesg.size)
 
         try {
-            return signer.generateSignature();
-        } catch (Exception e) {
+            return signer.generateSignature()
+        }
+        catch (e: Exception) {
             if (logger != null) {
-                logger.error("Unable to perform RSA cipher.", e);
+                logger.error("Unable to perform RSA cipher.", e)
             }
-            return new byte[0];
+            return ByteArray(0)
         }
     }
 
     /**
      * RSA verify data with a specified key.
      */
-    public static
-    boolean verify(PSSSigner signer, RSAKeyParameters rsaPublicKey, byte[] sig, byte[] mesg) {
-        signer.init(false, rsaPublicKey);
-        signer.update(mesg, 0, mesg.length);
+    fun verify(signer: PSSSigner, rsaPublicKey: RSAKeyParameters?, sig: ByteArray?, mesg: ByteArray): Boolean {
+        signer.init(false, rsaPublicKey)
+        signer.update(mesg, 0, mesg.size)
 
-        return signer.verifySignature(sig);
+        return signer.verifySignature(sig)
     }
 
-    @SuppressWarnings("RedundantIfStatement")
-    public static
-    boolean compare(RSAKeyParameters publicA, RSAKeyParameters publicB) {
-        if (!publicA.getExponent()
-                    .equals(publicB.getExponent())) {
-            return false;
+    fun compare(publicA: RSAKeyParameters, publicB: RSAKeyParameters): Boolean {
+        if (publicA.getExponent() != publicB.getExponent()) {
+            return false
         }
-        if (!publicA.getModulus()
-                    .equals(publicB.getModulus())) {
-            return false;
+        if (publicA.getModulus() != publicB.getModulus()) {
+            return false
         }
 
-        return true;
+        return true
     }
 
-    @SuppressWarnings("RedundantIfStatement")
-    public static
-    boolean compare(RSAPrivateCrtKeyParameters private1, RSAPrivateCrtKeyParameters private2) {
-        if (!private1.getModulus()
-                     .equals(private2.getModulus())) {
-            return false;
+    fun compare(private1: RSAPrivateCrtKeyParameters, private2: RSAPrivateCrtKeyParameters): Boolean {
+        if (private1.getModulus() != private2.getModulus()) {
+            return false
         }
-        if (!private1.getExponent()
-                     .equals(private2.getExponent())) {
-            return false;
+        if (private1.getExponent() != private2.getExponent()) {
+            return false
         }
-        if (!private1.getDP()
-                     .equals(private2.getDP())) {
-            return false;
+        if (private1.getDP() != private2.getDP()) {
+            return false
         }
-        if (!private1.getDQ()
-                     .equals(private2.getDQ())) {
-            return false;
+        if (private1.getDQ() != private2.getDQ()) {
+            return false
         }
-        if (!private1.getP()
-                     .equals(private2.getP())) {
-            return false;
+        if (private1.getP() != private2.getP()) {
+            return false
         }
-        if (!private1.getPublicExponent()
-                     .equals(private2.getPublicExponent())) {
-            return false;
+        if (private1.getPublicExponent() != private2.getPublicExponent()) {
+            return false
         }
-        if (!private1.getQ()
-                     .equals(private2.getQ())) {
-            return false;
+        if (private1.getQ() != private2.getQ()) {
+            return false
         }
-        if (!private1.getQInv()
-                     .equals(private2.getQInv())) {
-            return false;
+        if (private1.getQInv() != private2.getQInv()) {
+            return false
         }
 
-        return true;
-    }
-
-
-    private
-    CryptoRSA() {
+        return true
     }
 }

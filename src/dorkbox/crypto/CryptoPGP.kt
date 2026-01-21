@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 dorkbox, llc
+ * Copyright 2026 dorkbox, llc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,768 +13,699 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dorkbox.crypto;
+package dorkbox.crypto
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.BCPGOutputStream;
-import org.bouncycastle.bcpg.CompressionAlgorithmTags;
-import org.bouncycastle.openpgp.PGPCompressedData;
-import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
-import org.bouncycastle.openpgp.PGPEncryptedData;
-import org.bouncycastle.openpgp.PGPEncryptedDataGenerator;
-import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPLiteralData;
-import org.bouncycastle.openpgp.PGPLiteralDataGenerator;
-import org.bouncycastle.openpgp.PGPObjectFactory;
-import org.bouncycastle.openpgp.PGPPublicKey;
-import org.bouncycastle.openpgp.PGPPublicKeyRing;
-import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
-import org.bouncycastle.openpgp.PGPSecretKey;
-import org.bouncycastle.openpgp.PGPSecretKeyRing;
-import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
-import org.bouncycastle.openpgp.PGPSignature;
-import org.bouncycastle.openpgp.PGPSignatureGenerator;
-import org.bouncycastle.openpgp.PGPSignatureList;
-import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
-import org.bouncycastle.openpgp.PGPUtil;
-import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
-import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
-import org.bouncycastle.openpgp.operator.bc.BcPBESecretKeyDecryptorBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPContentSignerBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDataEncryptorBuilder;
-import org.bouncycastle.openpgp.operator.bc.BcPGPDigestCalculatorProvider;
-import org.bouncycastle.openpgp.operator.bc.BcPublicKeyKeyEncryptionMethodGenerator;
-
+import org.bouncycastle.bcpg.ArmoredOutputStream
+import org.bouncycastle.bcpg.BCPGOutputStream
+import org.bouncycastle.bcpg.CompressionAlgorithmTags
+import org.bouncycastle.openpgp.*
+import org.bouncycastle.openpgp.operator.bc.*
+import java.io.*
+import java.nio.charset.StandardCharsets
+import java.security.NoSuchProviderException
+import java.security.SecureRandom
+import java.util.*
+import java.util.regex.*
 
 /**
  * PGP crypto related methods
  */
-public final
 class CryptoPGP {
-    /**
-     * Gets the version number.
-     */
-    public static
-    String getVersion() {
-        return Crypto.INSTANCE.getVersion();
-    }
 
-    private static final BcPGPDigestCalculatorProvider digestCalculatorProvider = new BcPGPDigestCalculatorProvider();
-    private static final BcKeyFingerprintCalculator fingerprintCalculator = new BcKeyFingerprintCalculator();
-
-
-//    https://github.com/weiliatgithub/bouncycastle-gpg-exampleC
-//    https://gist.github.com/turingbirds/3df43f1920a98010667a
-//    http://sloanseaman.com/wordpress/2012/05/13/revisited-pgp-encryptiondecryption-in-java/
-//    http://bouncycastle-pgp-cookbook.blogspot.de/
-
-    /**
-     * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt"
-     *
-     * @param privateKeyInputStream
-     *                 this is an armored key file, not a binary stream
-     * @param userId
-     *                 this is the userID to get out of the private key
-     * @param password
-     *                 this is the password to unlock the private key
-     * @param messageAsUtf8Bytes
-     *                 this is the message, in bytes, to sign
-     */
-    public static
-    byte[] signGpgCompatible(InputStream privateKeyInputStream, String userId, char[] password, byte[] messageAsUtf8Bytes)
-                    throws PGPException {
-
-        // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
-        return sign(privateKeyInputStream,
-                    userId,
-                    password,
-                    new ByteArrayInputStream(messageAsUtf8Bytes),
-                    PGPSignature.BINARY_DOCUMENT,
-                    false,
-                    true,
-                    false,
-                    false,
-                    false);
-    }
-
-    /**
-     * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt"
-     *
-     * @param privateKeyInputStream
-     *                 this is an armored key file, not a binary stream
-     * @param userId
-     *                 this is the userID to get out of the private key
-     * @param password
-     *                 this is the password to unlock the private key
-     * @param message
-     *                 this is the message to sign
-     */
-    public static
-    byte[] signGpgCompatible(InputStream privateKeyInputStream, String userId, char[] password, InputStream message)
-                    throws PGPException {
-
-        // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
-        return sign(privateKeyInputStream,
-                    userId,
-                    password,
-                    message,
-                    PGPSignature.BINARY_DOCUMENT,
-                    false,
-                    true,
-                    false,
-                    false,
-                    false);
-    }
-
-    /**
-     * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt". This will save the signature of the passed-in
-     * file to file name + .asc
-     *
-     * @param privateKeyInputStream
-     *                 this is an armored key file, not a binary stream
-     * @param userId
-     *                 this is the userID to get out of the private key
-     * @param password
-     *                 this is the password to unlock the private key
-     * @param file
-     *                 this is the file to sign
-     */
-    public static
-    void signGpgCompatible(InputStream privateKeyInputStream, String userId, char[] password, File file)
-                    throws PGPException {
-
-        // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
-        final byte[] sign = sign(privateKeyInputStream,
-                                 userId,
-                                 password,
-                                 file,
-                                 PGPSignature.BINARY_DOCUMENT,
-                                 false,
-                                 true,
-                                 false,
-                                 false,
-                                 false);
-
-        FileOutputStream fileOutputStream1 = null;
-        try {
-            fileOutputStream1 = new FileOutputStream(new File(file.getAbsolutePath() + ".asc"));
-            fileOutputStream1.write(sign);
-            fileOutputStream1.flush();
-        } catch (FileNotFoundException e) {
-            throw new PGPException("Unable to save signature to file " + file.getAbsolutePath() + ".asc", e);
-        } catch (IOException e) {
-            throw new PGPException("Unable to save signature to file " + file.getAbsolutePath() + ".asc", e);
-        } finally {
-            close(fileOutputStream1);
-        }
-    }
-
-    /**
-     * Sign a message using our private PGP key file, with a variety of options
-     */
-    @SuppressWarnings("Duplicates")
-    public static
-    byte[] sign(InputStream privateKeyInputStream,
-                String userId,
-                char[] password,
-                InputStream message,
-                int signatureType,
-                boolean compressSignature,
-                boolean asciiArmoredOutput,
-                boolean includeDataInSignature,
-                boolean generateUserIdSubPacket,
-                boolean generateOnePassVersion) throws PGPException {
-
-        List<PGPSecretKey> secretKeys = getSecretKeys(privateKeyInputStream, userId);
-        PGPSignatureGenerator signature = createSignature(secretKeys, password, signatureType, generateUserIdSubPacket);
-
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        OutputStream outputStream = byteArrayOutputStream;
-        if (asciiArmoredOutput) {
-            outputStream = new ArmoredOutputStream(byteArrayOutputStream);
-        }
-
-        PGPCompressedDataGenerator compressedDataGenerator = null;
-        BCPGOutputStream bcOutputStream;
-
-        if (compressSignature) {
-            compressedDataGenerator = new PGPCompressedDataGenerator(PGPCompressedData.ZLIB);
-            try {
-                bcOutputStream = new BCPGOutputStream(compressedDataGenerator.open(outputStream));
-            } catch (IOException e) {
-                throw new PGPException("Unable to open compression stream in the signature", e);
-            }
-        }
-        else {
-            bcOutputStream = new BCPGOutputStream(outputStream);
-        }
-
-        if (generateOnePassVersion) {
-            try {
-                signature.generateOnePassVersion(false)
-                         .encode(bcOutputStream);
-            } catch (IOException e) {
-                throw new PGPException("Unable to generate OnePass signature header", e);
-            }
-        }
-
-        PGPLiteralDataGenerator literalDataGenerator = null;
-        OutputStream literalDataOutput = null;
-
-        if (includeDataInSignature) {
-            literalDataGenerator = new PGPLiteralDataGenerator();
-            try {
-                literalDataOutput = literalDataGenerator.open(bcOutputStream,
-                                                              PGPLiteralData.BINARY,
-                                                              "_CONSOLE",
-                                                              message.available(),
-                                                              new Date());
-            } catch (IOException e1) {
-                throw new PGPException("Unable to generate Literal Data signature header", e1);
-            }
-        }
-
-        try {
-            byte[] buffer = new byte[4096];
-            int read;
-
-            // update bytes in the streams
-            if (literalDataOutput != null) {
-                while ((read = message.read(buffer)) > 0) {
-                    literalDataOutput.write(buffer, 0, read);
-                    signature.update(buffer, 0, read);
-                }
-                literalDataOutput.flush();
-            } else {
-
-                while ((read = message.read(buffer)) > 0) {
-                    signature.update(buffer, 0, read);
-                }
-            }
-
-            // close generators and update signature
-            if (literalDataGenerator != null) {
-                literalDataGenerator.close();
-            }
-
-            signature.generate()
-                     .encode(bcOutputStream);
-
-
-            if (compressedDataGenerator != null) {
-                compressedDataGenerator.close();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            close(bcOutputStream);
-            close(outputStream);
-            close(literalDataOutput);
-        }
-
-        return byteArrayOutputStream.toByteArray();
-    }
-
-    /**
-     * Sign a message using our private PGP key file, with a variety of options
-     */
-    @SuppressWarnings("Duplicates")
-    public static
-    byte[] sign(InputStream privateKeyInputStream,
-                String userId,
-                char[] password,
-                File fileMessage,
-                int signatureType,
-                boolean compressSignature,
-                boolean asciiArmoredOutput,
-                boolean includeDataInSignature,
-                boolean generateUserIdSubPacket,
-                boolean generateOnePassVersion) throws PGPException {
-
-        List<PGPSecretKey> secretKeys = getSecretKeys(privateKeyInputStream, userId);
-        PGPSignatureGenerator signature = createSignature(secretKeys, password, signatureType, generateUserIdSubPacket);
-
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        OutputStream outputStream = byteArrayOutputStream;
-        if (asciiArmoredOutput) {
-            outputStream = new ArmoredOutputStream(byteArrayOutputStream);
-        }
-
-        PGPCompressedDataGenerator compressedDataGenerator = null;
-        BCPGOutputStream bcOutputStream;
-
-        if (compressSignature) {
-            compressedDataGenerator = new PGPCompressedDataGenerator(PGPCompressedData.ZLIB);
-            try {
-                bcOutputStream = new BCPGOutputStream(compressedDataGenerator.open(outputStream));
-            } catch (IOException e) {
-                throw new PGPException("Unable to open compression stream in the signature", e);
-            }
-        }
-        else {
-            bcOutputStream = new BCPGOutputStream(outputStream);
-        }
-
-        if (generateOnePassVersion) {
-            try {
-                signature.generateOnePassVersion(false)
-                         .encode(bcOutputStream);
-            } catch (IOException e) {
-                throw new PGPException("Unable to generate OnePass signature header", e);
-            }
-        }
-
-        PGPLiteralDataGenerator literalDataGenerator = null;
-        OutputStream literalDataOutput = null;
-
-        if (includeDataInSignature) {
-            literalDataGenerator = new PGPLiteralDataGenerator();
-            try {
-                literalDataOutput = literalDataGenerator.open(bcOutputStream,
-                                                              PGPLiteralData.BINARY,
-                                                              fileMessage);
-            } catch (IOException e1) {
-                throw new PGPException("Unable to generate Literal Data signature header", e1);
-            }
-        }
-
-        try {
-            final FileInputStream fileInputStream = new FileInputStream(fileMessage);
-
-            byte[] buffer = new byte[4096];
-            int read;
-
-            // update bytes in the streams
-            if (literalDataOutput != null) {
-                while ((read = fileInputStream.read(buffer)) > 0) {
-                    literalDataOutput.write(buffer, 0, read);
-                    signature.update(buffer, 0, read);
-                }
-                literalDataOutput.flush();
-            } else {
-
-                while ((read = fileInputStream.read(buffer)) > 0) {
-                    signature.update(buffer, 0, read);
-                }
-            }
-
-            // close generators and update signature
-            if (literalDataGenerator != null) {
-                literalDataGenerator.close();
-            }
-
-            signature.generate()
-                     .encode(bcOutputStream);
-
-
-            if (compressedDataGenerator != null) {
-                compressedDataGenerator.close();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            close(bcOutputStream);
-            close(outputStream);
-            close(literalDataOutput);
-        }
-
-        return byteArrayOutputStream.toByteArray();
-    }
-
-
-    /**
-     * Find private gpg key in InputStream, also closes the input stream
-     *
-     * @param inputStream
-     *                 the inputStream that contains the private (secret) key
-     * @param userId
-     *                 the user id
-     *
-     * @return the PGP secret key
-     */
-    public static
-    List<PGPSecretKey> getSecretKeys(InputStream inputStream, String userId) throws PGPException {
-        // iterate over every private key in the key ring
-        PGPSecretKeyRingCollection secretKeyRings;
-        try {
-            secretKeyRings = new PGPSecretKeyRingCollection(PGPUtil.getDecoderStream(inputStream), fingerprintCalculator);
-        } catch (IOException e) {
-            throw new PGPException("No private key found in stream!", e);
-        } finally {
-            close(inputStream);
-        }
-
-        // look for the key ring that is used to authenticate our reporting facilities
-        Iterator<PGPSecretKeyRing> secretKeys = secretKeyRings.getKeyRings(userId);
-        List<PGPSecretKey> pgpSecretKeys = new ArrayList<PGPSecretKey>();
-
-        // iterate over every private key in the ring
-        while (secretKeys.hasNext()) {
-            PGPSecretKeyRing secretKeyRing = secretKeys.next();
-            PGPSecretKey tmpKey = secretKeyRing.getSecretKey();
-
-            if (tmpKey != null) {
-                pgpSecretKeys.add(tmpKey);
-            }
-        }
-
-        if (!pgpSecretKeys.isEmpty()) {
-            return pgpSecretKeys;
-        }
-
-        throw new PGPException("No private key found in stream!");
-    }
-
-    /**
-     * Creates the signature that will be used to PGP sign data
-     *
-     * @param secretKeys
-     *                 these are the secret keys
-     * @param password
-     *                 this is the password to unlock the secret key
-     *
-     * @return the signature used to sign data
-     *
-     * @throws PGPException
-     */
-    private static
-    PGPSignatureGenerator createSignature(List<PGPSecretKey> secretKeys,
-                                          char[] password,
-                                          int signatureType,
-                                          boolean generateUserIdSubPacket) throws PGPException {
-
-        PGPSecretKey secretKey = null;
-        for (int i = 0; i < secretKeys.size(); i++) {
-            secretKey = secretKeys.get(i);
-
-            // we ONLY want the signing master key
-            if (!secretKey.isSigningKey() || !secretKey.isMasterKey()) {
-                secretKey = null;
-            }
-        }
-
-        if (secretKey == null) {
-            throw new PGPException("Secret key is not the signing master key");
-        }
-
-//            System.err.println("Signing key = " + tmpKey.isSigningKey() +", Master key = " + tmpKey.isMasterKey() + ", UserId = " +
-//                               userId );
-
-        if (password == null) {
-            password = new char[0];
-        }
-
-        PBESecretKeyDecryptor build = new BcPBESecretKeyDecryptorBuilder(digestCalculatorProvider).build(password);
-
-        SecureRandom random = new SecureRandom();
-        BcPGPContentSignerBuilder bcPGPContentSignerBuilder = new BcPGPContentSignerBuilder(secretKey.getPublicKey()
-                                                                                                     .getAlgorithm(),
-                                                                                            PGPUtil.SHA1).setSecureRandom(random);
-
-        PGPSignatureGenerator signature = new PGPSignatureGenerator(bcPGPContentSignerBuilder);
-        signature.init(signatureType, secretKey.extractPrivateKey(build));
-
-        Iterator userIds = secretKey.getPublicKey()
-                                    .getUserIDs();
-
-        // use the first userId that matches
-        if (userIds.hasNext()) {
-            if (generateUserIdSubPacket) {
-                PGPSignatureSubpacketGenerator subpacketGenerator = new PGPSignatureSubpacketGenerator();
-                subpacketGenerator.addSignerUserID(false, (String) userIds.next());
-                signature.setHashedSubpackets(subpacketGenerator.generate());
-            }
-            else {
-                signature.setHashedSubpackets(null);
-            }
-
-            return signature;
-        }
-        else {
-            throw new PGPException("Did not find specified userId");
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-    /**
-     * Decode a PGP public key block and return the keyring it represents.
-     */
-    public static
-    PGPPublicKeyRing getKeyring(InputStream keyBlockStream) throws IOException {
-
-        BcKeyFingerprintCalculator keyfp = new BcKeyFingerprintCalculator();
-
-        // PGPUtil.getDecoderStream() will detect ASCII-armor automatically and decode it,
-        // the PGPObject factory then knows how to read all the data in the encoded stream
-        PGPObjectFactory factory = new PGPObjectFactory(PGPUtil.getDecoderStream(keyBlockStream), keyfp);
-
-        // these files should really just have one object in them, and that object should be a PGPPublicKeyRing.
-        Object o = factory.nextObject();
-        if (o instanceof PGPPublicKeyRing) {
-            return (PGPPublicKeyRing) o;
-        }
-        throw new IllegalArgumentException("Input stream does not contain a PGP Public Key");
-    }
-
-    /**
-     * Get the first encryption key from the given keyring.
-     */
-    public static
-    PGPPublicKey getEncryptionKey(PGPPublicKeyRing keyRing) {
-        if (keyRing == null) {
-            return null;
-        }
-
-        // iterate over the keys on the ring, look for one which is suitable for encryption.
-        Iterator keys = keyRing.getPublicKeys();
-        PGPPublicKey key;
-        while (keys.hasNext()) {
-            key = (PGPPublicKey) keys.next();
-            if (key.isEncryptionKey()) {
-                return key;
-            }
-        }
-
-        return null;
-    }
+    private constructor()
 
     /**
      * Get the first decryption key from the given keyring.
      */
-    public
-    PGPSecretKey getDecryptionKey(PGPSecretKeyRing keyRing) {
+    fun getDecryptionKey(keyRing: PGPSecretKeyRing?): PGPSecretKey? {
         if (keyRing == null) {
-            return null;
+            return null
         }
 
         // iterate over the keys on the ring, look for one which is suitable for encryption.
-        Iterator keys = keyRing.getSecretKeys();
-        PGPSecretKey key;
+        val keys: MutableIterator<*> = keyRing.secretKeys
+        var key: PGPSecretKey
         while (keys.hasNext()) {
-            key = (PGPSecretKey) keys.next();
-            if (key.isMasterKey()) {
-                return key;
+            key = keys.next() as PGPSecretKey
+            if (key.isMasterKey) {
+                return key
             }
         }
 
-        return null;
+        return null
     }
 
 
     /**
      * Encrypt plaintext message using public key from publickeyFile.
-     *
+     * 
      * @param message
-     *                 the message
-     *
+     * the message
+     * 
      * @return the string
      */
-    private
-    String encrypt(InputStream publicKeyInputStream, String message) throws PGPException, IOException, NoSuchProviderException {
+    @Throws(PGPException::class, IOException::class, NoSuchProviderException::class)
+    private fun encrypt(publicKeyInputStream: InputStream, message: String): String? {
         // find the PGP key in the file
-        PGPPublicKey publicKey = findPublicGPGKey(publicKeyInputStream);
+        val publicKey = findPublicGPGKey(publicKeyInputStream)
 
         if (publicKey == null) {
-            System.err.println("Did not find public GPG key");
-            return null;
+            System.err.println("Did not find public GPG key")
+            return null
         }
 
 
         // Encode the string into bytes using utf-8
-        byte[] utf8Bytes = message.getBytes(StandardCharsets.UTF_8);
+        val utf8Bytes = message.toByteArray(StandardCharsets.UTF_8)
 
-        ByteArrayOutputStream compressedOutput = new ByteArrayOutputStream();
+        val compressedOutput = ByteArrayOutputStream()
 
         // compress bytes with zip
-        PGPLiteralDataGenerator literalDataGenerator = new PGPLiteralDataGenerator();
+        val literalDataGenerator = PGPLiteralDataGenerator()
 
         // the reason why we compress here is GPG not being able to decrypt our message input but if we do not compress.
         // I guess pkzip compression also encodes only to GPG-friendly characters.
-        PGPCompressedDataGenerator compressedDataGenerator = new PGPCompressedDataGenerator(CompressionAlgorithmTags.ZIP);
+        val compressedDataGenerator = PGPCompressedDataGenerator(CompressionAlgorithmTags.ZIP)
         try {
-            OutputStream literalDataOutput = literalDataGenerator.open(compressedOutput,
-                                                                       PGPLiteralData.BINARY,
-                                                                       "_CONSOLE",
-                                                                       utf8Bytes.length,
-                                                                       new Date());
+            val literalDataOutput = literalDataGenerator.open(
+                compressedOutput, PGPLiteralData.BINARY, "_CONSOLE", utf8Bytes.size.toLong(), Date()
+            )
             // update bytes in the stream
-            literalDataOutput.write(utf8Bytes);
-        } catch (IOException e) {
+            literalDataOutput.write(utf8Bytes)
+        }
+        catch (e: IOException) {
             // catch but close the streams in finally
-            throw e;
-        } finally {
-            compressedDataGenerator.close();
-            close(compressedOutput);
+            throw e
+        }
+        finally {
+            compressedDataGenerator.close()
+            close(compressedOutput)
         }
 
-        SecureRandom random = new SecureRandom();
+        val random = SecureRandom()
 
         // now we have zip-compressed bytes
-        byte[] compressedBytes = compressedOutput.toByteArray();
+        val compressedBytes = compressedOutput.toByteArray()
 
-        BcPGPDataEncryptorBuilder bcPGPDataEncryptorBuilder = new BcPGPDataEncryptorBuilder(PGPEncryptedData.CAST5)
-                        .setWithIntegrityPacket(true)
-                        .setSecureRandom(random);
+        val bcPGPDataEncryptorBuilder =
+            BcPGPDataEncryptorBuilder(PGPEncryptedData.CAST5).setWithIntegrityPacket(true).setSecureRandom(random)
 
-        PGPEncryptedDataGenerator encryptedDataGenerator = new PGPEncryptedDataGenerator(bcPGPDataEncryptorBuilder);
+        val encryptedDataGenerator = PGPEncryptedDataGenerator(bcPGPDataEncryptorBuilder)
 
         // use public key to encrypt data
+        val encKeyGen = BcPublicKeyKeyEncryptionMethodGenerator(publicKey).setSecureRandom(random)
 
-        BcPublicKeyKeyEncryptionMethodGenerator encKeyGen = new BcPublicKeyKeyEncryptionMethodGenerator(publicKey)
-                        .setSecureRandom(random);
-
-        encryptedDataGenerator.addMethod(encKeyGen);
+        encryptedDataGenerator.addMethod(encKeyGen)
 
         // literalDataOutput --> compressedOutput --> ArmoredOutputStream --> ByteArrayOutputStream
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        ArmoredOutputStream armoredOut = new ArmoredOutputStream(byteArrayOutputStream);
-        OutputStream encryptedOutput = null;
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        val armoredOut = ArmoredOutputStream(byteArrayOutputStream)
+        var encryptedOutput: OutputStream? = null
         try {
-            encryptedOutput = encryptedDataGenerator.open(armoredOut, compressedBytes.length);
-            encryptedOutput.write(compressedBytes);
-        } catch (IOException e) {
-            throw e;
-        } catch (PGPException e) {
-            throw e;
-        } finally {
-            close(encryptedOutput);
-            close(armoredOut);
+            encryptedOutput = encryptedDataGenerator.open(armoredOut, compressedBytes.size.toLong())
+            encryptedOutput.write(compressedBytes)
         }
-        String encrypted = new String(byteArrayOutputStream.toByteArray());
+        catch (e: IOException) {
+            throw e
+        }
+        catch (e: PGPException) {
+            throw e
+        }
+        finally {
+            close(encryptedOutput)
+            close(armoredOut)
+        }
+        val encrypted = String(byteArrayOutputStream.toByteArray())
 
-        System.err.println("Message: " + message);
-        System.err.println("Encrypted: " + encrypted);
+        System.err.println("Message: " + message)
+        System.err.println("Encrypted: " + encrypted)
 
-        return encrypted;
+        return encrypted
     }
 
-    /**
-     * Find public gpg key in InputStream.
-     *
-     * @param inputStream
-     *                 the input stream
-     *
-     * @return the PGP public key
-     */
-    private static
-    PGPPublicKey findPublicGPGKey(InputStream inputStream) throws IOException, PGPException {
+    companion object {
+        /**
+         * Gets the version number.
+         */
+        const val version = Crypto.version
 
-        // get all key rings in the input stream
-        PGPPublicKeyRingCollection publicKeyRingCollection = new PGPPublicKeyRingCollection(PGPUtil.getDecoderStream(inputStream), fingerprintCalculator);
+        private val digestCalculatorProvider = BcPGPDigestCalculatorProvider()
+        private val fingerprintCalculator = BcKeyFingerprintCalculator()
 
-        System.err.println("key ring size: " + publicKeyRingCollection.size());
 
-        Iterator<PGPPublicKeyRing> keyRingIter = publicKeyRingCollection.getKeyRings();
+        //    https://github.com/weiliatgithub/bouncycastle-gpg-exampleC
+        //    https://gist.github.com/turingbirds/3df43f1920a98010667a
+        //    http://sloanseaman.com/wordpress/2012/05/13/revisited-pgp-encryptiondecryption-in-java/
+        //    http://bouncycastle-pgp-cookbook.blogspot.de/
+        /**
+         * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt"
+         * 
+         * @param privateKeyInputStream
+         * this is an armored key file, not a binary stream
+         * @param userId
+         * this is the userID to get out of the private key
+         * @param password
+         * this is the password to unlock the private key
+         * @param messageAsUtf8Bytes
+         * this is the message, in bytes, to sign
+         */
+        @Throws(PGPException::class)
+        fun signGpgCompatible(
+            privateKeyInputStream: InputStream,
+            userId: String,
+            password: CharArray,
+            messageAsUtf8Bytes: ByteArray
+        ): ByteArray {
+            // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
 
-        // iterate over keyrings
-        while (keyRingIter.hasNext()) {
-            PGPPublicKeyRing keyRing = keyRingIter.next();
-            Iterator<PGPPublicKey> keyIter = keyRing.getPublicKeys();
-            // iterate over public keys in the key ring
-            while (keyIter.hasNext()) {
-                PGPPublicKey tmpKey = keyIter.next();
-
-                if (tmpKey == null) {
-                    break;
-                }
-
-                Iterator<String> userIDs = tmpKey.getUserIDs();
-                ArrayList<String> strings = new ArrayList<String>();
-                while (userIDs.hasNext()) {
-                    String next = userIDs.next();
-                    strings.add(next);
-                }
-
-                System.err.println(
-                                "Encryption key = " + tmpKey.isEncryptionKey() + ", Master key = " + tmpKey.isMasterKey() + ", UserId = " +
-                                strings);
-
-                // we need a master encryption key
-                if (tmpKey.isEncryptionKey() && tmpKey.isMasterKey()) {
-                    return tmpKey;
-                }
-            }
+            return sign(
+                privateKeyInputStream,
+                userId,
+                password,
+                ByteArrayInputStream(messageAsUtf8Bytes),
+                PGPSignature.BINARY_DOCUMENT,
+                false,
+                true,
+                false,
+                false,
+                false
+            )
         }
-        throw new PGPException("No public key found!");
-    }
 
+        /**
+         * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt"
+         * 
+         * @param privateKeyInputStream
+         * this is an armored key file, not a binary stream
+         * @param userId
+         * this is the userID to get out of the private key
+         * @param password
+         * this is the password to unlock the private key
+         * @param message
+         * this is the message to sign
+         */
+        @Throws(PGPException::class)
+        fun signGpgCompatible(privateKeyInputStream: InputStream, userId: String, password: CharArray, message: InputStream): ByteArray {
+            // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
 
+            return sign(
+                privateKeyInputStream, userId, password, message, PGPSignature.BINARY_DOCUMENT, false, true, false, false, false
+            )
+        }
 
-    private static
-    void verify(final InputStream publicKeyInputStream, final byte[] signature) throws Exception {
-        PGPPublicKey publicKey = findPublicGPGKey(publicKeyInputStream);
+        /**
+         * Sign a message using our private PGP key file, this matches gpg -ab "hello.txt". This will save the signature of the passed-in
+         * file to file name + .asc
+         * 
+         * @param privateKeyInputStream
+         * this is an armored key file, not a binary stream
+         * @param userId
+         * this is the userID to get out of the private key
+         * @param password
+         * this is the password to unlock the private key
+         * @param file
+         * this is the file to sign
+         */
+        @Throws(PGPException::class)
+        fun signGpgCompatible(privateKeyInputStream: InputStream, userId: String, password: CharArray, file: File) {
+            // the signature type (in gpg terms), is "sigclass". gpg is BINARY_DOC (0x00)
 
-        String text = new String(signature);
+            val sign: ByteArray = sign(
+                privateKeyInputStream, userId, password, file, PGPSignature.BINARY_DOCUMENT, false, true, false, false, false
+            )
 
-        Pattern regex = Pattern.compile(
-                        "-----BEGIN PGP SIGNED MESSAGE-----\\r?\\n.*?\\r?\\n\\r?\\n(.*)\\r?\\n(-----BEGIN PGP SIGNATURE-----\\r?\\n.*-----END PGP SIGNATURE-----)",
-                        Pattern.CANON_EQ | Pattern.DOTALL);
-        Matcher regexMatcher = regex.matcher(text);
-        if (regexMatcher.find()) {
-            String dataText = regexMatcher.group(1);
-            String signText = regexMatcher.group(2);
-
-            ByteArrayInputStream dataIn = new ByteArrayInputStream(dataText.getBytes("UTF8"));
-            ByteArrayInputStream signIn = new ByteArrayInputStream(signText.getBytes("UTF8"));
-
-
-            InputStream signIn2 = PGPUtil.getDecoderStream(signIn);
-
-            PGPObjectFactory pgpFact = new PGPObjectFactory(signIn2, new BcKeyFingerprintCalculator());
-            PGPSignatureList p3 = null;
-
-            Object o;
-
+            var fileOutputStream1: FileOutputStream? = null
             try {
-                o = pgpFact.nextObject();
-                if (o == null) {
-                    throw new Exception();
-                }
-            } catch (Exception ex) {
-                throw new Exception("Invalid input data");
+                fileOutputStream1 = FileOutputStream(File(file.absolutePath + ".asc"))
+                fileOutputStream1.write(sign)
+                fileOutputStream1.flush()
+            }
+            catch (e: FileNotFoundException) {
+                throw PGPException("Unable to save signature to file " + file.absolutePath + ".asc", e)
+            }
+            catch (e: IOException) {
+                throw PGPException("Unable to save signature to file " + file.absolutePath + ".asc", e)
+            }
+            finally {
+                close(fileOutputStream1)
+            }
+        }
+
+        /**
+         * Sign a message using our private PGP key file, with a variety of options
+         */
+        @Throws(PGPException::class)
+        fun sign(
+            privateKeyInputStream: InputStream,
+            userId: String,
+            password: CharArray,
+            message: InputStream,
+            signatureType: Int,
+            compressSignature: Boolean,
+            asciiArmoredOutput: Boolean,
+            includeDataInSignature: Boolean,
+            generateUserIdSubPacket: Boolean,
+            generateOnePassVersion: Boolean
+        ): ByteArray {
+            val secretKeys = getSecretKeys(privateKeyInputStream, userId)
+            val signature = createSignature(secretKeys, password, signatureType, generateUserIdSubPacket)
+
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            var outputStream: OutputStream = byteArrayOutputStream
+            if (asciiArmoredOutput) {
+                outputStream = ArmoredOutputStream(byteArrayOutputStream)
             }
 
-            if (o instanceof PGPCompressedData) {
-                PGPCompressedData c1 = (PGPCompressedData) o;
+            var compressedDataGenerator: PGPCompressedDataGenerator? = null
+            val bcOutputStream: BCPGOutputStream?
 
-                pgpFact = new PGPObjectFactory(c1.getDataStream(), new BcKeyFingerprintCalculator());
-
-                p3 = (PGPSignatureList) pgpFact.nextObject();
+            if (compressSignature) {
+                compressedDataGenerator = PGPCompressedDataGenerator(PGPCompressedData.ZLIB)
+                try {
+                    bcOutputStream = BCPGOutputStream(compressedDataGenerator.open(outputStream))
+                }
+                catch (e: IOException) {
+                    throw PGPException("Unable to open compression stream in the signature", e)
+                }
             }
             else {
-                p3 = (PGPSignatureList) o;
+                bcOutputStream = BCPGOutputStream(outputStream)
             }
 
+            if (generateOnePassVersion) {
+                try {
+                    signature.generateOnePassVersion(false).encode(bcOutputStream)
+                }
+                catch (e: IOException) {
+                    throw PGPException("Unable to generate OnePass signature header", e)
+                }
+            }
 
-//            PGPSignature sig = p3.get(0);
+            var literalDataGenerator: PGPLiteralDataGenerator? = null
+            var literalDataOutput: OutputStream? = null
+
+            if (includeDataInSignature) {
+                literalDataGenerator = PGPLiteralDataGenerator()
+                try {
+                    literalDataOutput = literalDataGenerator.open(
+                        bcOutputStream, PGPLiteralData.BINARY, "_CONSOLE", message.available().toLong(), Date()
+                    )
+                }
+                catch (e1: IOException) {
+                    throw PGPException("Unable to generate Literal Data signature header", e1)
+                }
+            }
+
+            try {
+                val buffer = ByteArray(4096)
+                var read: Int
+
+                // update bytes in the streams
+                if (literalDataOutput != null) {
+                    while ((message.read(buffer).also { read = it }) > 0) {
+                        literalDataOutput.write(buffer, 0, read)
+                        signature.update(buffer, 0, read)
+                    }
+                    literalDataOutput.flush()
+                }
+                else {
+                    while ((message.read(buffer).also { read = it }) > 0) {
+                        signature.update(buffer, 0, read)
+                    }
+                }
+
+                // close generators and update signature
+                if (literalDataGenerator != null) {
+                    literalDataGenerator.close()
+                }
+
+                signature.generate().encode(bcOutputStream)
+
+
+                if (compressedDataGenerator != null) {
+                    compressedDataGenerator.close()
+                }
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+            }
+            finally {
+                close(bcOutputStream)
+                close(outputStream)
+                close(literalDataOutput)
+            }
+
+            return byteArrayOutputStream.toByteArray()
+        }
+
+        /**
+         * Sign a message using our private PGP key file, with a variety of options
+         */
+        @Throws(PGPException::class)
+        fun sign(
+            privateKeyInputStream: InputStream,
+            userId: String,
+            password: CharArray,
+            fileMessage: File,
+            signatureType: Int,
+            compressSignature: Boolean,
+            asciiArmoredOutput: Boolean,
+            includeDataInSignature: Boolean,
+            generateUserIdSubPacket: Boolean,
+            generateOnePassVersion: Boolean
+        ): ByteArray {
+            val secretKeys = getSecretKeys(privateKeyInputStream, userId)
+            val signature = createSignature(secretKeys, password, signatureType, generateUserIdSubPacket)
+
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            var outputStream: OutputStream = byteArrayOutputStream
+            if (asciiArmoredOutput) {
+                outputStream = ArmoredOutputStream(byteArrayOutputStream)
+            }
+
+            var compressedDataGenerator: PGPCompressedDataGenerator? = null
+            val bcOutputStream: BCPGOutputStream?
+
+            if (compressSignature) {
+                compressedDataGenerator = PGPCompressedDataGenerator(PGPCompressedData.ZLIB)
+                try {
+                    bcOutputStream = BCPGOutputStream(compressedDataGenerator.open(outputStream))
+                }
+                catch (e: IOException) {
+                    throw PGPException("Unable to open compression stream in the signature", e)
+                }
+            }
+            else {
+                bcOutputStream = BCPGOutputStream(outputStream)
+            }
+
+            if (generateOnePassVersion) {
+                try {
+                    signature.generateOnePassVersion(false).encode(bcOutputStream)
+                }
+                catch (e: IOException) {
+                    throw PGPException("Unable to generate OnePass signature header", e)
+                }
+            }
+
+            var literalDataGenerator: PGPLiteralDataGenerator? = null
+            var literalDataOutput: OutputStream? = null
+
+            if (includeDataInSignature) {
+                literalDataGenerator = PGPLiteralDataGenerator()
+                try {
+                    literalDataOutput = literalDataGenerator.open(
+                        bcOutputStream, PGPLiteralData.BINARY, fileMessage
+                    )
+                }
+                catch (e1: IOException) {
+                    throw PGPException("Unable to generate Literal Data signature header", e1)
+                }
+            }
+
+            try {
+                val fileInputStream = FileInputStream(fileMessage)
+
+                val buffer = ByteArray(4096)
+                var read: Int
+
+                // update bytes in the streams
+                if (literalDataOutput != null) {
+                    while ((fileInputStream.read(buffer).also { read = it }) > 0) {
+                        literalDataOutput.write(buffer, 0, read)
+                        signature.update(buffer, 0, read)
+                    }
+                    literalDataOutput.flush()
+                }
+                else {
+                    while ((fileInputStream.read(buffer).also { read = it }) > 0) {
+                        signature.update(buffer, 0, read)
+                    }
+                }
+
+                // close generators and update signature
+                if (literalDataGenerator != null) {
+                    literalDataGenerator.close()
+                }
+
+                signature.generate().encode(bcOutputStream)
+
+
+                if (compressedDataGenerator != null) {
+                    compressedDataGenerator.close()
+                }
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+            }
+            finally {
+                close(bcOutputStream)
+                close(outputStream)
+                close(literalDataOutput)
+            }
+
+            return byteArrayOutputStream.toByteArray()
+        }
+
+
+        /**
+         * Find private gpg key in InputStream, also closes the input stream
+         * 
+         * @param inputStream
+         * the inputStream that contains the private (secret) key
+         * @param userId
+         * the user id
+         * 
+         * @return the PGP secret key
+         */
+        @Throws(PGPException::class)
+        fun getSecretKeys(inputStream: InputStream, userId: String): MutableList<PGPSecretKey> {
+            // iterate over every private key in the key ring
+            var secretKeyRings: PGPSecretKeyRingCollection?
+            try {
+                secretKeyRings = PGPSecretKeyRingCollection(PGPUtil.getDecoderStream(inputStream), fingerprintCalculator)
+            }
+            catch (e: IOException) {
+                throw PGPException("No private key found in stream!", e)
+            }
+            finally {
+                close(inputStream)
+            }
+
+            // look for the key ring that is used to authenticate our reporting facilities
+            val secretKeys = secretKeyRings.getKeyRings(userId)
+            val pgpSecretKeys: MutableList<PGPSecretKey> = mutableListOf()
+
+            // iterate over every private key in the ring
+            while (secretKeys.hasNext()) {
+                val secretKeyRing = secretKeys.next()
+                val tmpKey = secretKeyRing.secretKey
+
+                if (tmpKey != null) {
+                    pgpSecretKeys.add(tmpKey)
+                }
+            }
+
+            return pgpSecretKeys
+        }
+
+        /**
+         * Creates the signature that will be used to PGP sign data
+         * 
+         * @param secretKeys
+         * these are the secret keys
+         * @param password
+         * this is the password to unlock the secret key
+         * 
+         * @return the signature used to sign data
+         * 
+         * @throws PGPException
+         */
+        @Throws(PGPException::class)
+        private fun createSignature(
+            secretKeys: MutableList<PGPSecretKey>,
+            password: CharArray = CharArray(0),
+            signatureType: Int,
+            generateUserIdSubPacket: Boolean
+        ): PGPSignatureGenerator {
+            var password = password
+            var secretKey: PGPSecretKey? = null
+
+            for (i in secretKeys.indices) {
+                secretKey = secretKeys[i]
+
+                // we ONLY want the signing master key
+                if (!secretKey.isSigningKey() || !secretKey.isMasterKey) {
+                    secretKey = null
+                }
+            }
+
+            if (secretKey == null) {
+                throw PGPException("Secret key is not the signing master key")
+            }
+
+            //            System.err.println("Signing key = " + tmpKey.isSigningKey() +", Master key = " + tmpKey.isMasterKey() + ", UserId = " +
+//                               userId );
+
+            val build = BcPBESecretKeyDecryptorBuilder(digestCalculatorProvider).build(password)
+
+            val random = SecureRandom()
+            val bcPGPContentSignerBuilder = BcPGPContentSignerBuilder(
+                secretKey.publicKey.algorithm, PGPUtil.SHA1
+            ).setSecureRandom(random)
+
+            val signature = PGPSignatureGenerator(bcPGPContentSignerBuilder)
+            signature.init(signatureType, secretKey.extractPrivateKey(build))
+
+            val userIds: MutableIterator<*> = secretKey.publicKey.getUserIDs()
+
+            // use the first userId that matches
+            if (userIds.hasNext()) {
+                if (generateUserIdSubPacket) {
+                    val subpacketGenerator = PGPSignatureSubpacketGenerator()
+                    subpacketGenerator.addSignerUserID(false, userIds.next() as String?)
+                    signature.setHashedSubpackets(subpacketGenerator.generate())
+                }
+                else {
+                    signature.setHashedSubpackets(null)
+                }
+
+                return signature
+            }
+            else {
+                throw PGPException("Did not find specified userId")
+            }
+        }
+
+
+
+        /**
+         * Decode a PGP public key block and return the keyring it represents.
+         */
+        @Throws(IOException::class)
+        fun getKeyring(keyBlockStream: InputStream): PGPPublicKeyRing? {
+            val keyfp = BcKeyFingerprintCalculator()
+
+            // PGPUtil.getDecoderStream() will detect ASCII-armor automatically and decode it,
+            // the PGPObject factory then knows how to read all the data in the encoded stream
+            val factory = PGPObjectFactory(PGPUtil.getDecoderStream(keyBlockStream), keyfp)
+
+            // these files should really just have one object in them, and that object should be a PGPPublicKeyRing.
+            val o = factory.nextObject()
+            if (o is PGPPublicKeyRing) {
+                return o
+            }
+
+            return null
+        }
+
+        /**
+         * Get the first encryption key from the given keyring.
+         */
+        fun getEncryptionKey(keyRing: PGPPublicKeyRing): PGPPublicKey? {
+            // iterate over the keys on the ring, look for one which is suitable for encryption.
+            val keys: MutableIterator<*> = keyRing.publicKeys
+            var key: PGPPublicKey
+            while (keys.hasNext()) {
+                key = keys.next() as PGPPublicKey
+                if (key.isEncryptionKey()) {
+                    return key
+                }
+            }
+
+            return null
+        }
+
+        /**
+         * Find public gpg key in InputStream.
+         * 
+         * @param inputStream
+         * the input stream
+         * 
+         * @return the PGP public key
+         */
+        @Throws(IOException::class, PGPException::class)
+        private fun findPublicGPGKey(inputStream: InputStream): PGPPublicKey? {
+            // get all key rings in the input stream
+
+            val publicKeyRingCollection = PGPPublicKeyRingCollection(PGPUtil.getDecoderStream(inputStream), fingerprintCalculator)
+
+            System.err.println("key ring size: " + publicKeyRingCollection.size())
+
+            val keyRingIter = publicKeyRingCollection.keyRings
+
+            // iterate over keyrings
+            while (keyRingIter.hasNext()) {
+                val keyRing = keyRingIter.next()
+                val keyIter = keyRing.publicKeys
+                // iterate over public keys in the key ring
+                while (keyIter.hasNext()) {
+                    val tmpKey = keyIter.next()
+
+                    if (tmpKey == null) {
+                        break
+                    }
+
+                    val userIDs = tmpKey.getUserIDs()
+                    val strings = ArrayList<String?>()
+                    while (userIDs.hasNext()) {
+                        val next = userIDs.next()
+                        strings.add(next)
+                    }
+
+                    System.err.println(
+                        "Encryption key = " + tmpKey.isEncryptionKey() + ", Master key = " + tmpKey.isMasterKey + ", UserId = " + strings
+                    )
+
+                    // we need a master encryption key
+                    if (tmpKey.isEncryptionKey() && tmpKey.isMasterKey) {
+                        return tmpKey
+                    }
+                }
+            }
+
+            return null
+        }
+
+
+
+        @Throws(Exception::class)
+        private fun verify(publicKeyInputStream: InputStream, signature: ByteArray) {
+            val publicKey = findPublicGPGKey(publicKeyInputStream)
+
+            val text = String(signature)
+
+            val regex = Pattern.compile(
+                "-----BEGIN PGP SIGNED MESSAGE-----\\r?\\n.*?\\r?\\n\\r?\\n(.*)\\r?\\n(-----BEGIN PGP SIGNATURE-----\\r?\\n.*-----END PGP SIGNATURE-----)",
+                Pattern.CANON_EQ or Pattern.DOTALL
+            )
+            val regexMatcher = regex.matcher(text)
+            if (regexMatcher.find()) {
+                val dataText = regexMatcher.group(1)
+                val signText = regexMatcher.group(2)
+
+                val dataIn = ByteArrayInputStream(dataText.toByteArray(charset("UTF8")))
+                val signIn = ByteArrayInputStream(signText.toByteArray(charset("UTF8")))
+
+
+                val signIn2 = PGPUtil.getDecoderStream(signIn)
+
+                var pgpFact = PGPObjectFactory(signIn2, BcKeyFingerprintCalculator())
+                var p3: PGPSignatureList? = null
+
+                val o = pgpFact.nextObject()
+
+                if (o is PGPCompressedData) {
+                    pgpFact = PGPObjectFactory(o.getDataStream(), BcKeyFingerprintCalculator())
+
+                    p3 = pgpFact.nextObject() as PGPSignatureList?
+                }
+                else {
+                    p3 = o as PGPSignatureList
+                }
+
+
+                //            PGPSignature sig = p3.get(0);
 //            PGPPublicKey key = KeyRing.getPublicKeyByID(sig.getKeyID());
 //
 //            if (key == null)
@@ -792,24 +723,21 @@ class CryptoPGP {
 //                return null;
 
 //            return verifyFile(dataIn, signIn);
-
+            }
         }
-    }
 
 
-    private
-    CryptoPGP() {
-    }
+        @Throws(Exception::class)
+        @JvmStatic
+        fun main(args: Array<String>) {
+            val privateKeyInputStream: InputStream = FileInputStream(File("/home/user/dorkbox/sonatype_private.key"))
 
-    public static
-    void main(String[] args) throws Exception {
-        InputStream privateKeyInputStream = new FileInputStream(new File("/home/user/dorkbox/sonatype_private.key"));
+            val textBytes = "hello".toByteArray(StandardCharsets.UTF_8)
 
-        byte[] textBytes = "hello".getBytes(StandardCharsets.UTF_8);
+            val bytes: ByteArray = signGpgCompatible(privateKeyInputStream, "Dorkbox <sonatype@dorkbox.com>", CharArray(0), textBytes)
 
-        byte[] bytes = CryptoPGP.signGpgCompatible(privateKeyInputStream, "Dorkbox <sonatype@dorkbox.com>", new char[0], textBytes);
 
-//        String s = new String(hello);
+            //        String s = new String(hello);
 //        String s1 = s.replaceAll("\n", "\r\n");
 //        byte[] bytes = s1.getBytes(OS.UTF_8);
 
@@ -826,28 +754,27 @@ class CryptoPGP {
 
 //        InputStream publicKeyInputStream = new FileInputStream(new File("/home/user/dorkbox/sonatype_public.key"));
 //        cryptoPGP.verify(publicKeyInputStream, hello);
+            val fileOutputStream = FileOutputStream(File("/home/user/dorkbox/hello2.txt"))
+            fileOutputStream.write(textBytes)
+            fileOutputStream.flush()
+            close(fileOutputStream)
 
 
-        FileOutputStream fileOutputStream = new FileOutputStream(new File("/home/user/dorkbox/hello2.txt"));
-        fileOutputStream.write(textBytes);
-        fileOutputStream.flush();
-        close(fileOutputStream);
+            val fileOutputStream1 = FileOutputStream(File("/home/user/dorkbox/hello2.txt.asc"))
+            fileOutputStream1.write(bytes)
+            fileOutputStream1.flush()
+            close(fileOutputStream1)
+        }
 
-
-        FileOutputStream fileOutputStream1 = new FileOutputStream(new File("/home/user/dorkbox/hello2.txt.asc"));
-        fileOutputStream1.write(bytes);
-        fileOutputStream1.flush();
-        close(fileOutputStream1);
-    }
-
-    private static
-    void close(final Closeable closeable) {
-        if (closeable != null) {
-            try {
-                closeable.close();
-            } catch (IOException e) {
-                System.err.println("Error closing : " + closeable);
-                e.printStackTrace();
+        private fun close(closeable: Closeable?) {
+            if (closeable != null) {
+                try {
+                    closeable.close()
+                }
+                catch (e: IOException) {
+                    System.err.println("Error closing : " + closeable)
+                    e.printStackTrace()
+                }
             }
         }
     }
