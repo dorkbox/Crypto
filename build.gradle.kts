@@ -24,32 +24,39 @@ gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS   // always show th
 
 
 plugins {
-    id("com.dorkbox.GradleUtils") version "4.6"
+    id("com.dorkbox.GradleUtils") version "4.8"
     id("com.dorkbox.Licensing") version "3.1"
-    id("com.dorkbox.VersionUpdate") version "3.1"
-    id("com.dorkbox.GradlePublish") version "2.0"
+    id("com.dorkbox.VersionUpdate") version "3.2"
+    id("com.dorkbox.GradlePublish") version "2.2"
 
     kotlin("jvm") version "2.3.0"
 }
 
-object Extras {
-    // set for the project
-    const val description = "Crypto utility methods for ease of use with AES/ECC/GCM/PPG/ECDSA/SCrypt/BCrypt/X509/OpenSSL-PBE, java 8+"
-    const val group = "com.dorkbox"
-    const val version = "1.3"
 
-    // set as project.ext
-    const val name = "Crypto"
-    const val id = "Crypto" // this is the maven ID!
-    const val vendor = "Dorkbox LLC"
-    const val vendorUrl = "https://dorkbox.com"
-    const val url = "https://git.dorkbox.com/dorkbox/Crypto"
+GradleUtils.load {
+    group = "com.dorkbox"
+    id = "Crypto" // this is the maven ID!
+
+    description = "Crypto utility methods for ease of use with AES/ECC/GCM/PPG/ECDSA/SCrypt/BCrypt/X509/OpenSSL-PBE"
+    name = "Crypto"
+    version = "1.3"
+
+    vendor = "Dorkbox LLC"
+    vendorUrl = "https://dorkbox.com"
+
+    url = "https://git.dorkbox.com/dorkbox/Crypto"
+
+    issueManagement {
+        url = "${url}/issues"
+        nickname = "Gitea Issues"
+    }
+
+    developer {
+        id = "dorkbox"
+        name = vendor
+        email = "email@dorkbox.com"
+    }
 }
-
-///////////////////////////////
-/////  assign 'Extras'
-///////////////////////////////
-GradleUtils.load("$projectDir/../../gradle.properties", Extras)
 GradleUtils.defaults()
 GradleUtils.compileConfiguration(JavaVersion.VERSION_25)
 
@@ -69,22 +76,6 @@ licensing {
         }
     }
 }
-
-tasks.jar.get().apply {
-    manifest {
-        // https://docs.oracle.com/javase/tutorial/deployment/jar/packageman.html
-        attributes["Name"] = Extras.name
-
-        attributes["Specification-Title"] = Extras.name
-        attributes["Specification-Version"] = Extras.version
-        attributes["Specification-Vendor"] = Extras.vendor
-
-        attributes["Implementation-Title"] = "${Extras.group}.${Extras.id}"
-        attributes["Implementation-Version"] = GradleUtils.now()
-        attributes["Implementation-Vendor"] = Extras.vendor
-    }
-}
-
 
 
 tasks.withType<Test>() {
@@ -113,28 +104,4 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("ch.qos.logback:logback-classic:1.5.26")
-}
-
-mavenCentral {
-    groupId = Extras.group
-    artifactId = Extras.id
-    version = Extras.version
-
-    name = Extras.name
-    description = Extras.description
-    url = Extras.url
-
-    vendor = Extras.vendor
-    vendorUrl = Extras.vendorUrl
-
-    issueManagement {
-        url = "${Extras.url}/issues"
-        nickname = "Gitea Issues"
-    }
-
-    developer {
-        id = "dorkbox"
-        name = Extras.vendor
-        email = "email@dorkbox.com"
-    }
 }
